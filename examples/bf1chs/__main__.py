@@ -441,6 +441,7 @@ class BF1ChsToolbox:
             console.print(f"[bold red]配置文件 config.json 格式错误：键 {e.args[0]} 值不合法。")
             if e.args[1] is not None:
                 console.print(f"[bold red]提示：{e.args[1]}")
+            input()
             raise BF1ChsToolbox.ExitException
 
         except Exception as e:
@@ -470,6 +471,8 @@ class BF1ChsToolbox:
             if not self._rich_confirm(message="是否覆盖？"):
                 return
             console.print()
+
+        console.print(f"[yellow]下载路径：{os.path.abspath(self.config['paratranz.artifactPath'])}\n")
 
         self._rich_indeterminate_progress(
             task_name="从 ParaTranz 下载",
