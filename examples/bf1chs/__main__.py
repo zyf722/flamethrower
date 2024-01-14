@@ -177,14 +177,14 @@ class BF1ChsToolbox:
             title: str,
             desc: str,
             choices: Dict[
-                str, Dict[str, Union[str, Callable, "BF1ChsToolbox.SelectAction"]]
+                str, Dict[str, Union[str, Callable, "BF1ChsToolbox.SelectAction", None]]
             ],
             is_main: bool = False,
         ) -> None:
             self.title = title
             self.desc = desc
             self.choices = choices
-            self.back_choice = [
+            self.back_choice: List[Union[Separator, Choice]] = [
                 Separator(),
                 Choice(
                     value="back",
@@ -216,16 +216,17 @@ class BF1ChsToolbox:
                         elif "desc" not in value:
                             desc_str += "[dark-gray]暂无描述。"
                         else:
+                            assert isinstance(value["desc"], str)
                             desc_str += value["desc"]
                         console.print(desc_str)
                     console.print()
 
                 action = self._choice_helper(
                     [
-                        Choice(value=key, name=value["name"])
+                        Choice(value=key, name=value["name"])  # type: ignore
                         for key, value in self.choices.items()
                     ]
-                    + self.back_choice
+                    + self.back_choice  # type: ignore
                 )
 
                 if action == "back":
@@ -240,10 +241,10 @@ class BF1ChsToolbox:
                         self.choices[action]["actor"], BF1ChsToolbox.SelectAction
                     ):
                         # This is a SelectAction representing a submenu
-                        self.choices[action]["actor"].run()
+                        self.choices[action]["actor"].run()  # type: ignore
                     elif callable(self.choices[action]["actor"]):
                         # This is a function that actually do things
-                        self.choices[action]["actor"]()
+                        self.choices[action]["actor"]()  # type: ignore
                         console.print("[dark-gray]按回车键以继续。")
                         input()
                 except BF1ChsToolbox.ExitException:
@@ -516,7 +517,9 @@ class BF1ChsToolbox:
                 return
             console.print()
 
-        console.print(f"[yellow]下载路径：{os.path.abspath(self.config['paratranz.artifactPath'])}\n")
+        console.print(
+            f"[yellow]下载路径：{os.path.abspath(self.config['paratranz.artifactPath'])}\n"
+        )
 
         self._rich_indeterminate_progress(
             task_name="从 ParaTranz 下载",
