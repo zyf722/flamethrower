@@ -24,7 +24,7 @@ from rich.theme import Theme
 
 from flamethrower.localization import Histogram, StringsBinary
 
-VERSION = "v0.1.0"
+VERSION = "v0.1.1"
 PROJECT_ID = 8862
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
