@@ -201,7 +201,13 @@ class Histogram(ChunkData):
         with open(file_path, "wb") as file:
             file.write(struct.pack("III", self.magic, self.fileSize, self.dataOffSize))
             for char in self.section:
-                file.write(struct.pack("H", ord(char)))
+                char_code = ord(char)
+                if char_code > 0xFFFF:
+                    print(
+                        f"Warning: Char {char} with code {hex(char_code)} out of range. Skippping."
+                    )
+                else:
+                    file.write(struct.pack("H", char_code))
 
     @property
     def chunk_size(self) -> int:
