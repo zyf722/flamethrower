@@ -165,6 +165,7 @@ examples/bf1chs/font/
 examples/bf1chs/artifact/
 examples/bf1chs/config.json
 examples/bf1chs/build.bat
+examples/bf1chs/bf1chs.zip
 *.build/
 *.dist/
 *.onefile-build/
