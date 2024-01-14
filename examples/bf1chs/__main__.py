@@ -43,6 +43,9 @@ class BF1ChsToolbox:
     class ExitException(Exception):
         pass
 
+    class IncompatibleConfigException(Exception):
+        pass
+
     class Config:
         """
         Config class to store and validate config.
@@ -63,7 +66,12 @@ class BF1ChsToolbox:
             "bf1chs.version": (
                 VERSION,
                 "当前配置文件版本，用于校验。[bold dark_red]不应手动修改。",
-                lambda x: x == VERSION,
+                lambda x: all(
+                    [
+                        x == y
+                        for x, y in zip(x.split(".")[:-1], VERSION.split(".")[:-1])
+                    ]  # Skip the last version number
+                ),
                 "配置文件版本不匹配，可能是由于配置文件版本过旧或者版本不兼容导致。",
             ),
             "paratranz.token": (
@@ -125,13 +133,29 @@ class BF1ChsToolbox:
                     if not isinstance(value, type(cls.schema[key][0])):
                         raise TypeError(key, cls.schema[key][3])
                     if not cls.schema[key][2](value):
-                        raise ValueError(key, cls.schema[key][3])
+                        if key == "bf1chs.version":
+                            raise BF1ChsToolbox.IncompatibleConfigException
+                        else:
+                            raise ValueError(key, cls.schema[key][3])
                     config._config_dict[key] = value
 
             return config
 
         def __getitem__(self, key: str) -> Any:
             return self._config_dict[key]
+        
+        def update(self, config_dict: Dict) -> None:
+            """
+            This method should only be used when updating old config files.
+            """
+            for key, value in config_dict.items():
+                if key in self.schema:
+                    if not isinstance(value, type(self.schema[key][0])):
+                        raise TypeError(key, self.schema[key][3])
+                    if key != "bf1chs.version":
+                        if not self.schema[key][2](value):
+                            raise ValueError(key, self.schema[key][3])
+                        self._config_dict[key] = value
 
         def show(self):
             console.print("[underline yellow]当前配置")
@@ -414,6 +438,26 @@ class BF1ChsToolbox:
                 self.config = BF1ChsToolbox.Config.load(json.load(f))
             self.config.show()
             self.api = ParaTranzAPI(self.config["paratranz.token"], PROJECT_ID)
+
+        except BF1ChsToolbox.IncompatibleConfigException:
+            console.print("[yellow]配置文件 config.json 版本不兼容。\n")
+            if self._rich_confirm(message="是否尝试升级？"):
+                with open("config.json", "r", encoding="utf-8") as f:
+                    config_dict = json.load(f)
+                self.config = BF1ChsToolbox.Config()
+
+                try:
+                    self.config.update(config_dict)
+                except Exception as e:
+                    console.print("[bold red]配置文件升级失败。\n")
+                    raise e
+                
+                with open("config.json", "w", encoding="utf-8") as f:
+                    json.dump(self.config._config_dict, f, indent=4, ensure_ascii=False)
+                
+                console.print("[bold green]配置文件升级成功。\n")
+                
+            raise BF1ChsToolbox.ExitException
 
         except FileNotFoundError:
             self.config = BF1ChsToolbox.Config()
