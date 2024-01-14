@@ -1,4 +1,3 @@
-import csv
 import json
 import os
 import re
@@ -537,8 +536,16 @@ class BF1ChsToolbox:
             progress: Progress, task: TaskID, new_dict: Dict, save_name: str
         ):
             for key in new_dict:
-                for term in terms:
-                    new_dict[key] = new_dict[key].replace(term, terms[term])
+                assert isinstance(new_dict[key], tuple)
+
+                # Stage code: https://paratranz.cn/docs
+                if new_dict[key][1] in (0, 1, 2):
+                    raw_string = new_dict[key][0]
+                    for term in terms:
+                        raw_string = raw_string.replace(term, terms[term])
+                    new_dict[key] = raw_string
+                else:
+                    new_dict[key] = new_dict[key][0]
                 progress.advance(task)
 
             with open(
@@ -548,6 +555,17 @@ class BF1ChsToolbox:
             ) as new_file:
                 json.dump(new_dict, new_file, indent=4, ensure_ascii=False)
             progress.advance(task)
+
+        def _load_raw_json(path: str) -> Dict:
+            original_json = open(
+                os.path.join(artifact_path, path),
+                "r",
+                encoding="utf-8",
+            )
+            return {
+                item["key"]: (item["translation"], item["stage"])
+                for item in json.load(original_json)
+            }
 
         terms: Dict = self._rich_indeterminate_progress(
             task_name="从 ParaTranz 获取术语表",
@@ -592,16 +610,19 @@ class BF1ChsToolbox:
                 return
             console.print()
 
-        original_csv = open(
-            os.path.join(artifact_path, "strings-zht.csv"),
-            "r",
-            encoding="utf-8-sig",  # However \ufeff still appears, why?
-        )
-        new_dict = {}
-        for row in csv.reader(original_csv):
-            if row[0].startswith("\ufeff"):
-                row[0] = row[0][1:]
-            new_dict[row[0]] = row[2] if len(row) == 3 else row[1]
+        # NOTE: stop using csv
+        # original_csv = open(
+        #     os.path.join(artifact_path, "strings-zht.csv"),
+        #     "r",
+        #     encoding="utf-8-sig",  # However \ufeff still appears, why?
+        # )
+        # new_dict = {}
+        # for row in csv.reader(original_csv):
+        #     if row[0].startswith("\ufeff"):
+        #         row[0] = row[0][1:]
+        #     new_dict[row[0]] = row[2] if len(row) == 3 else row[1]
+
+        new_dict = _load_raw_json("strings-zht.csv.json")
         self._rich_progress(
             task_name="替换静态本地化文件",
             short_name="替换静态本地化",
@@ -622,12 +643,7 @@ class BF1ChsToolbox:
                 return
             console.print()
 
-        original_json = open(
-            os.path.join(artifact_path, "twinkle.json"), "r", encoding="utf-8"
-        )
-        new_dict = {
-            item["key"]: item["translation"] for item in json.load(original_json)
-        }
+        new_dict = _load_raw_json("twinkle.json")
         self._rich_progress(
             task_name="替换动态本地化文件",
             short_name="替换动态本地化",
