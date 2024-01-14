@@ -77,7 +77,7 @@ class BF1ChsToolbox:
                 "",
                 "ParaTranz API Token，可在 [link=https://paratranz.cn/users/my]https://paratranz.cn/users/my[/link] 获取。",
                 lambda x: len(x) == 32 and ParaTranzAPI.test_api(x, PROJECT_ID),
-                "请检查 API Token 是否正确、ParaTranz 账户是否已经加入[link=https://paratranz.cn/projects/8862]汉化项目[/link]、网络连接是否正常。",
+                "请检查 API Token 是否正确、ParaTranz 账户是否已经加入[link=https://paratranz.cn/projects/8862]汉化项目[/link]、网络连接是否正常。\n如果问题仍然存在，可能由于短时间内请求过多导致，请两分钟后重试。",
             ),
             "paratranz.artifactPath": (
                 "artifact",
