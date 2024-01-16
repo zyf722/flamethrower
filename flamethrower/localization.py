@@ -136,7 +136,8 @@ class Histogram(ChunkData):
         assert self.section is not None
 
         char_set = set(chars)
-        char_set.remove("")
+        if "" in char_set:
+            char_set.remove("")
         chars = list(char_set - char_set.intersection(self.section))
         self.section[self.dataOffSize - 1 : self.dataOffSize - 1] = chars
         self.fileSize += len(chars)
