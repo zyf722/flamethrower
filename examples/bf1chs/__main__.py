@@ -489,6 +489,7 @@ class BF1ChsToolbox:
 
         except Exception as e:
             console.print(f"[bold red]配置文件 config.json 读取失败：{e}")
+            input()
             raise BF1ChsToolbox.ExitException
 
     def _download(self):
