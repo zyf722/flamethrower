@@ -2,12 +2,13 @@ import json
 import os
 import re
 import textwrap
+import webbrowser
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
+from api import GithubAPI, ParaTranzAPI, ProxyError, RequestException
 from InquirerPy import inquirer
 from InquirerPy.base.control import Choice
 from InquirerPy.separator import Separator
-from paratranz import ParaTranzAPI
 from rich import box
 from rich.console import Console
 from rich.progress import (
@@ -24,8 +25,12 @@ from rich.theme import Theme
 
 from flamethrower.localization import Histogram, StringsBinary
 
-VERSION = "v0.1.1"
+VERSION = "v0.2.0"
 PROJECT_ID = 8862
+REPO_NAME = "flamethrower"
+REPO_OWNER = "zyf722"
+ASSET_NAME = "bf1chs.zip"
+
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
 console = Console(
@@ -114,6 +119,12 @@ class BF1ChsToolbox:
                 "本程序界面中最多显示的项目数，当项目数超过此值时会自动截断。对表格、列表等生效。",
                 lambda x: isinstance(x, int) and x > 0,
                 "应为正整数。",
+            ),
+            "meta.autoUpdate": (
+                True,
+                "是否在启动时自动检查更新。",
+                lambda x: isinstance(x, bool),
+                "应为布尔值。",
             ),
         }
 
@@ -248,8 +259,12 @@ class BF1ChsToolbox:
                         input()
                 except BF1ChsToolbox.ExitException:
                     raise BF1ChsToolbox.ExitException
-                # except Exception as e:
-                #     console.print(f"[bold red]未知错误：{e}\n")
+                except ProxyError:
+                    console.print("[bold red]代理错误。请检查代理设置是否正确。\n")
+                except RequestException as e:
+                    console.print(f"[bold red]未知网络错误 ({e.__class__.__name__}): {e}\n")
+                except Exception as e:
+                    console.print(f"[bold red]未知错误 ({e.__class__.__name__}): {e}\n")
 
     def _rich_truncate(
         self, container: Union[list, tuple, dict], max_items: Optional[int] = None
@@ -438,7 +453,9 @@ class BF1ChsToolbox:
                 with open("config.json", "r", encoding="utf-8") as f:
                     self.config = BF1ChsToolbox.Config.load(json.load(f))
                 self.config.show()
-                self.api = ParaTranzAPI(self.config["paratranz.token"], PROJECT_ID)
+                self.paratranz_api = ParaTranzAPI(
+                    self.config["paratranz.token"], PROJECT_ID
+                )
 
             except BF1ChsToolbox.IncompatibleConfigException:
                 console.print("[yellow]配置文件 config.json 版本不兼容。\n")
@@ -454,7 +471,9 @@ class BF1ChsToolbox:
                         raise e
 
                     with open("config.json", "w", encoding="utf-8") as f:
-                        json.dump(self.config._config_dict, f, indent=4, ensure_ascii=False)
+                        json.dump(
+                            self.config._config_dict, f, indent=4, ensure_ascii=False
+                        )
 
                     console.print("[bold green]配置文件升级成功。\n")
 
@@ -492,6 +511,11 @@ class BF1ChsToolbox:
             input()
             raise BF1ChsToolbox.ExitException
 
+        # Check for updates
+        self.github_api = GithubAPI(REPO_OWNER, REPO_NAME)
+        if self.config["meta.autoUpdate"]:
+            self._check_update()
+
     def _download(self):
         """
         Download the artifact from ParaTranz.
@@ -499,7 +523,7 @@ class BF1ChsToolbox:
         artifact_datetime = self._rich_indeterminate_progress(
             task_name="从 ParaTranz 获取构建信息",
             short_name="获取构建信息",
-            actor=self.api.get_artifact_datetime,
+            actor=self.paratranz_api.get_artifact_datetime,
         )
         if artifact_datetime is None:
             return
@@ -523,7 +547,7 @@ class BF1ChsToolbox:
         self._rich_indeterminate_progress(
             task_name="从 ParaTranz 下载",
             short_name="下载",
-            actor=self.api.download_artifact,
+            actor=self.paratranz_api.download_artifact,
             path=self.config["paratranz.artifactPath"],
         )
 
@@ -570,7 +594,7 @@ class BF1ChsToolbox:
         terms: Dict = self._rich_indeterminate_progress(
             task_name="从 ParaTranz 获取术语表",
             short_name="获取术语表",
-            actor=self.api.get_terms,
+            actor=self.paratranz_api.get_terms,
         )
         if terms is None:
             return
@@ -919,6 +943,36 @@ class BF1ChsToolbox:
             new_res_path=new_res_path,
         )
 
+    def _check_update(self):
+        """
+        Check for updates.
+        """
+        console.print("[yellow]正在检查更新...")
+        try:
+            (
+                latest_asset_url,
+                latest_version,
+                latest_published_time,
+            ) = self.github_api.get_latest_asset(ASSET_NAME)
+        except ProxyError as e:
+            console.print("[bold red]代理错误。请检查代理设置是否正确。\n")
+            raise e
+        except RequestException as e:
+            console.print(f"[bold red]未知网络错误 ({e.__class__.__name__}): {e}\n")
+            raise e
+
+        if latest_version == VERSION:
+            console.print("[bold green]当前版本已是最新。\n")
+        else:
+            console.print(
+                f"[yellow]发现新版本 {latest_version}，发布于 {latest_published_time.strftime('%Y年%m月%d日 %H:%M:%S')}。\n"
+            )
+            if self._rich_confirm(message="是否立即下载？"):
+                webbrowser.open(latest_asset_url)
+                raise BF1ChsToolbox.ExitException
+            else:
+                console.print("[yellow]当前版本已过时，请及时更新。\n")
+
     def run(self):
         # Run main menu
         BF1ChsToolbox.SelectAction(
@@ -976,6 +1030,10 @@ class BF1ChsToolbox:
                             },
                         },
                     ),
+                },
+                "update": {
+                    "name": "检查程序更新",
+                    "actor": self._check_update,
                 },
             },
             is_main=True,
