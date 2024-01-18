@@ -514,7 +514,10 @@ class BF1ChsToolbox:
         # Check for updates
         self.github_api = GithubAPI(REPO_OWNER, REPO_NAME)
         if self.config["meta.autoUpdate"]:
-            self._check_update()
+            try:
+                self._check_update()
+            except Exception:
+                console.print("[bold red]自动更新失败。\n")
 
     def _download(self):
         """
