@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Optional, Union
 from zipfile import ZipFile
 
+from dateutil import tz
 from requests import Response, Session
 from requests.exceptions import ProxyError, RequestException  # noqa: F401
 
@@ -37,6 +38,23 @@ def api_call(endpoint: str, method: str, params: Optional[dict] = None):
         return wrapper
 
     return decorator
+
+
+def from_utc_to_local(utc_datetime: datetime) -> datetime:
+    """
+    Convert datetime from UTC to local time.
+
+    Args:
+        utc_datetime (datetime): The datetime in UTC.
+
+    Returns:
+        datetime: The datetime in local time.
+    """
+    local_timezone = tz.tzlocal()
+    utc_timezone = tz.tzutc()
+    utc_datetime = utc_datetime.replace(tzinfo=utc_timezone)
+    local_datetime = utc_datetime.astimezone(local_timezone)
+    return local_datetime
 
 
 class BaseAPI(ABC):
@@ -94,7 +112,11 @@ class GithubAPI(BaseAPI):
                             latest_asset_url = asset["browser_download_url"]
                             latest_version = release["name"].split(" ")[-1]
 
-        return (latest_asset_url, latest_version, latest_published_time)
+        return (
+            latest_asset_url,
+            latest_version,
+            from_utc_to_local(latest_published_time),
+        )
 
 
 class ParaTranzAPI(BaseAPI):
@@ -155,7 +177,9 @@ class ParaTranzAPI(BaseAPI):
         """
         if response is None:
             raise ValueError("Response is None.")
-        return datetime.strptime(response.json()["createdAt"], "%Y-%m-%dT%H:%M:%S.%fZ")
+        return from_utc_to_local(
+            datetime.strptime(response.json()["createdAt"], "%Y-%m-%dT%H:%M:%S.%fZ")
+        )
 
     @api_call(endpoint="/terms", method="GET", params={"page": 1, "pageSize": 800})
     def get_terms(self, response: Optional[Response] = None) -> dict:
