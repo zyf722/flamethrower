@@ -9,7 +9,8 @@ from zipfile import ZipFile
 
 from dateutil import tz
 from requests import Response, Session
-from requests.exceptions import ProxyError, RequestException  # noqa: F401
+from requests.exceptions import ProxyError, RequestException, SSLError  # noqa: F401
+from urllib3.exceptions import RequestError as URLlib3RequestError  # noqa: F401
 
 
 # Decorator to wrap API.

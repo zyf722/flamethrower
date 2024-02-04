@@ -5,7 +5,13 @@ import textwrap
 import webbrowser
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
-from api import GithubAPI, ParaTranzAPI, ProxyError, RequestException
+from api import (
+    GithubAPI,
+    ParaTranzAPI,
+    ProxyError,
+    RequestException,
+    URLlib3RequestError,
+)
 from InquirerPy import inquirer
 from InquirerPy.base.control import Choice
 from InquirerPy.separator import Separator
@@ -261,8 +267,10 @@ class BF1ChsToolbox:
                     raise BF1ChsToolbox.ExitException
                 except ProxyError:
                     console.print("[bold red]代理错误。请检查代理设置是否正确。\n")
-                except RequestException as e:
-                    console.print(f"[bold red]未知网络错误 ({e.__class__.__name__}): {e}\n")
+                except (RequestException, URLlib3RequestError) as e:
+                    console.print(
+                        f"[bold red]未知网络错误 ({e.__class__.__name__})。请尝试使用代理连接。\n"
+                    )
                 except Exception as e:
                     console.print(f"[bold red]未知错误 ({e.__class__.__name__}): {e}\n")
 
@@ -499,6 +507,11 @@ class BF1ChsToolbox:
 
             raise BF1ChsToolbox.ExitException
 
+        except (RequestException, URLlib3RequestError):
+            console.print("[bold red]网络错误。请检查网络连接是否正常。\n")
+            input()
+            raise BF1ChsToolbox.ExitException
+
         except (TypeError, ValueError) as e:
             console.print(f"[bold red]配置文件 config.json 格式错误：键 {e.args[0]} 值不合法。")
             if e.args[1] is not None:
@@ -517,7 +530,7 @@ class BF1ChsToolbox:
             try:
                 self._check_update()
             except Exception:
-                console.print("[bold red]自动更新失败。\n")
+                console.print("[bold red]检查更新失败。\n")
 
     def _download(self):
         """
@@ -960,8 +973,10 @@ class BF1ChsToolbox:
         except ProxyError as e:
             console.print("[bold red]代理错误。请检查代理设置是否正确。\n")
             raise e
-        except RequestException as e:
-            console.print(f"[bold red]未知网络错误 ({e.__class__.__name__}): {e}\n")
+        except (RequestException, URLlib3RequestError) as e:
+            console.print(
+                f"[bold red]未知网络错误 ({e.__class__.__name__})。请尝试使用代理连接。\n"
+            )
             raise e
 
         if latest_version == VERSION:
