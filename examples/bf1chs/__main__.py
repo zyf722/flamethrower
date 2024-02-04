@@ -575,6 +575,12 @@ class BF1ChsToolbox:
         """
         Replace the localization files.
         """
+        artifact_path = os.path.abspath(self.config["paratranz.artifactPath"])
+        if not os.path.exists(artifact_path):
+            console.print(
+                f"[bold red]下载路径 {artifact_path} 不存在，请先下载汉化文件。"
+            )
+            return
 
         def _replace_runner(
             progress: Progress, task: TaskID, new_dict: Dict, save_name: str
@@ -635,13 +641,6 @@ class BF1ChsToolbox:
             terms_table.add_row(key, value)
         console.print(terms_table)
         console.print()
-
-        artifact_path = os.path.abspath(self.config["paratranz.artifactPath"])
-        if not os.path.exists(artifact_path):
-            console.print(
-                f"[bold red]下载路径 {artifact_path} 不存在，请先下载汉化文件。"
-            )
-            return
 
         # For strings-zht.csv
         if os.path.exists(
