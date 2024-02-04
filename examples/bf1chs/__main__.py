@@ -1260,15 +1260,15 @@ class BF1ChsToolbox:
                                 "desc": "从 ParaTranz 项目导出处下载最新汉化压缩包，解压到指定路径。",
                                 "actor": self._download,
                             },
-                            "check_conflict": {
-                                "name": "检测 ParaTranz 词条冲突",
-                                "desc": "检测下载的、替换前的汉化文件中的译文不一致冲突，并输出为 .md 文件。",
-                                "actor": self._check_conflict,
-                            },
                             "replace": {
                                 "name": "使用 ParaTranz 术语库替换汉化文件",
-                                "desc": "使用 ParaTranz 术语库对汉化文件进行替换，生成能够导入的 .json 文件。",
+                                "desc": "使用 ParaTranz 术语库对汉化文件进行就地替换，并额外生成工具箱能够处理的 .json 文件。",
                                 "actor": self._replace,
+                            },
+                            "check_conflict": {
+                                "name": "检测 ParaTranz 词条冲突",
+                                "desc": "检测汉化文件中的译文不一致冲突，并输出为 .md 文件。",
+                                "actor": self._check_conflict,
                             },
                             "strings": {
                                 "name": "生成 Frosty Editor 码表并更新静态本地化 chunk 文件",
