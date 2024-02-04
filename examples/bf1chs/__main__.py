@@ -508,9 +508,12 @@ class BF1ChsToolbox:
 
         # Load config
         try:
+            config_loaded = False
             try:
                 with open("config.json", "r", encoding="utf-8") as f:
                     self.config = BF1ChsToolbox.Config.load(json.load(f))
+                    config_loaded = True
+
             except BF1ChsToolbox.IncompatibleConfigException:
                 console.print("[yellow]配置文件 config.json 版本不兼容。\n")
                 if self._rich_confirm(message="是否尝试升级？"):
@@ -530,11 +533,14 @@ class BF1ChsToolbox:
                         )
 
                     console.print("[bold green]配置文件升级成功。\n")
+                    config_loaded = True
+
             finally:
-                self.config.show()
-                self.paratranz_api = ParaTranzAPI(
-                    self.config["paratranz.token"], PROJECT_ID
-                )
+                if config_loaded:
+                    self.config.show()
+                    self.paratranz_api = ParaTranzAPI(
+                        self.config["paratranz.token"], PROJECT_ID
+                    )
 
         except FileNotFoundError:
             self.config = BF1ChsToolbox.Config()
