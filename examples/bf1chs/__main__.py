@@ -12,6 +12,7 @@ from api import (
     RequestException,
     URLlib3RequestError,
 )
+from conflict import Conflicts
 from InquirerPy import inquirer
 from InquirerPy.base.control import Choice
 from InquirerPy.separator import Separator
@@ -123,10 +124,15 @@ class BF1ChsToolbox:
                 "替换术语后新生成的汉化文件存放路径，可为相对路径。替换与后续操作均在此路径下进行。",
                 *Validator.none_validator,
             ),
-            "paratranz.newTwinkleFilename": (
-                "new-twinkle.json",
-                "替换术语后新生成的动态本地化文件名，需以 .json 结尾。",
-                *json_validator,
+            "paratranz.conflictReport.filename": (
+                "conflict.md",
+                "译文不一致检测生成的冲突报告文件名，需以 .md 结尾。",
+                *Validator.filename_validator(".md"),
+            ),
+            "paratranz.conflictReport.headerLevel": (
+                2,
+                "冲突报告的标题级别。",
+                *Validator.positive_integer_validator,
             ),
             "localization.histogramPath": (
                 "localization/histogram",
@@ -1159,6 +1165,62 @@ class BF1ChsToolbox:
             else:
                 console.print("[yellow]当前版本已过时，请及时更新。\n")
 
+    def _check_conflict(self):
+        """
+        Check for conflicts.
+        """
+        artifact_path = os.path.abspath(self.config["paratranz.artifactPath"])
+        if not os.path.exists(artifact_path):
+            console.print(
+                f"[bold red]下载路径 {artifact_path} 不存在，请先下载汉化文件。"
+            )
+            return
+
+        conflicts = Conflicts(PROJECT_ID)
+
+        def _conflicts_runner(
+            progress: Progress, task: TaskID, data: List[Any], file_name: str
+        ):
+            for obj in data:
+                if "original" in obj and isinstance(obj["original"], str):
+                    conflicts.add(
+                        obj["original"],
+                        file_name,
+                        obj["key"],
+                        obj["translation"],
+                    )
+                    progress.advance(task)
+
+        for file in ARTIFACT_MANIFEST:
+            with open(os.path.join(artifact_path, file), "r", encoding="utf-8") as f:
+                data = json.load(f)
+                if not isinstance(data, list):
+                    console.print(f"[bold red]{file} 文件格式错误，跳过。")
+                    continue
+
+                self._rich_progress(
+                    task_name=f"检测{ARTIFACT_MANIFEST[file]}",
+                    short_name=f"检测 {file} ",
+                    actor=_conflicts_runner,
+                    total=len(data),
+                    data=data,
+                    file_name=file,
+                )
+
+        report_path = os.path.join(
+            artifact_path, self.config["paratranz.conflictReport.filename"]
+        )
+        with open(report_path, "w", encoding="utf-8") as f:
+            f.write(
+                conflicts.to_markdown(
+                    self.config["paratranz.conflictReport.headerLevel"]
+                )
+            )
+
+        console.print(
+            f"[bold green]已完成词条冲突检测。冲突报告已保存至 {report_path} 。\n"
+        )
+
     def run(self):
         # Run main menu
         BF1ChsToolbox.SelectAction(
@@ -1175,6 +1237,11 @@ class BF1ChsToolbox:
                                 "name": "从 ParaTranz 下载最新汉化文件",
                                 "desc": "从 ParaTranz 项目导出处下载最新汉化压缩包，解压到指定路径。",
                                 "actor": self._download,
+                            },
+                            "check_conflict": {
+                                "name": "检测 ParaTranz 词条冲突",
+                                "desc": "检测下载的、替换前的汉化文件中的译文不一致冲突，并输出为 .md 文件。",
+                                "actor": self._check_conflict,
                             },
                             "replace": {
                                 "name": "使用 ParaTranz 术语库替换汉化文件",
