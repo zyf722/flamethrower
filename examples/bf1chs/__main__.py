@@ -144,8 +144,18 @@ class BF1ChsToolbox:
             ),
             "localization.stringsPath": (
                 "localization/strings",
-                "本地化文件存放路径，可为相对路径。",
+                "静态本地化文件存放路径，可为相对路径。",
                 *Validator.none_validator,
+            ),
+            "localization.twinklePath": (
+                "localization/twinkle",
+                "动态本地化文件存放路径，可为相对路径。",
+                *Validator.none_validator,
+            ),
+            "localization.twinkleFilename": (
+                "BF1CHS_twinkle_extra.json",
+                "动态本地化文件存放路径，可为相对路径。",
+                *Validator.filename_validator(".json"),
             ),
             "font.path": (
                 "font",
@@ -1053,6 +1063,78 @@ class BF1ChsToolbox:
             f"[bold green]已完成本地化文件更新。导入 Chunk 时请一并修改 BinaryChunkSize 为 [underline]{strings_binary.chunk_size}[/] 。\n"
         )
 
+    def _update_twinkle(self):
+        """
+        Generate twinkle dynamic files.
+        """
+        artifact_path = os.path.abspath(self.config["paratranz.artifactPath"])
+        if not os.path.exists(artifact_path):
+            console.print(
+                f"[bold red]下载路径 {artifact_path} 不存在，请先下载汉化文件。"
+            )
+            return
+
+        if not self._check_manifest():
+            console.print("[bold red]汉化文件不完整，请重新下载汉化文件。")
+            return
+
+        twinkle_path = os.path.abspath(self.config["localization.twinklePath"])
+        if not os.path.exists(twinkle_path):
+            os.makedirs(twinkle_path)
+
+        entries = []
+        entry_dict = {}
+        for file, desc in ARTIFACT_MANIFEST.items():
+            with open(os.path.join(artifact_path, file), "r", encoding="utf-8") as f:
+                entries.extend(json.load(f))
+
+        twinkle_file_path = self._rich_text(
+            message="输入新的本地化文件名",
+            default=self.config["localization.twinkleFilename"],
+            filter=lambda x: os.path.join(twinkle_path, x),
+        )
+        if os.path.exists(twinkle_file_path):
+            console.print(f"[yellow]本地化文件 {twinkle_file_path} 已存在。\n")
+            if not self._rich_confirm(message="是否覆盖？"):
+                return
+            console.print()
+
+        def _twinkle_runner(
+            progress: Progress,
+            task: TaskID,
+            entries: List[Dict[str, Union[str, int, List[str]]]],
+        ):
+            conflict_count = 0
+            for item in entries:
+                if item["original"] not in entry_dict:
+                    entry_dict[item["original"]] = item["translation"]
+                elif entry_dict[item["original"]] != item["translation"]:
+                    conflict_count += 1
+                progress.advance(task)
+
+            with open(
+                twinkle_file_path,
+                "w",
+                encoding="utf-8",
+            ) as new_file:
+                json.dump(entry_dict, new_file, indent=4, ensure_ascii=False)
+            progress.advance(task)
+
+            return conflict_count
+
+        conflict_count = self._rich_progress(
+            task_name="导出动态本地化文件",
+            short_name="导出动态本地化",
+            actor=_twinkle_runner,
+            total=len(entries) + 1,
+            entries=entries,
+        )
+
+        if conflict_count > 0:
+            console.print(
+                f"[bold red]导出时发现 {conflict_count} 个译文不一致冲突，请手动检测冲突查看。\n"
+            )
+
     def _res2ttf(self):
         """
         Convert .res to .ttf.
@@ -1278,7 +1360,7 @@ class BF1ChsToolbox:
                             "twinkle": {
                                 "name": "更新 Frosty Editor 动态本地化 chunk 文件",
                                 "desc": "根据替换后的 .json 汉化文件生成可读取的动态本地化文件。",
-                                "actor": None,
+                                "actor": self._update_twinkle,
                             },
                             "legacy": {
                                 "name": "旧版操作",
