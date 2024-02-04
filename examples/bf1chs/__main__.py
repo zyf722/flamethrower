@@ -34,7 +34,7 @@ from rich.theme import Theme
 
 from flamethrower.localization import Histogram, StringsBinary
 
-VERSION = "v0.2.0"
+VERSION = "v0.3.0"
 PROJECT_ID = 8862
 REPO_NAME = "flamethrower"
 REPO_OWNER_GITHUB = "zyf722"
