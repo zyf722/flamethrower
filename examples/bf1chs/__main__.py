@@ -423,7 +423,9 @@ class BF1ChsToolbox:
             console.print(f"[yellow]支持文件类型：[/]{types_repr}\n")
             return None
 
-        console.print("[dark-gray]（使用方向键上下移动 / 回车键确认 / 输入关键词进行模糊搜索）")
+        console.print(
+            "[dark-gray]（使用方向键上下移动 / 回车键确认 / 输入关键词进行模糊搜索）"
+        )
         result = inquirer.fuzzy(
             message=f"{message} ({types_repr})",
             choices=choices,
@@ -513,7 +515,9 @@ class BF1ChsToolbox:
             raise BF1ChsToolbox.ExitException
 
         except (TypeError, ValueError) as e:
-            console.print(f"[bold red]配置文件 config.json 格式错误：键 {e.args[0]} 值不合法。")
+            console.print(
+                f"[bold red]配置文件 config.json 格式错误：键 {e.args[0]} 值不合法。"
+            )
             if e.args[1] is not None:
                 console.print(f"[bold red]提示：{e.args[1]}")
             input()
@@ -634,7 +638,9 @@ class BF1ChsToolbox:
 
         artifact_path = os.path.abspath(self.config["paratranz.artifactPath"])
         if not os.path.exists(artifact_path):
-            console.print(f"[bold red]下载路径 {artifact_path} 不存在，请先下载汉化文件。")
+            console.print(
+                f"[bold red]下载路径 {artifact_path} 不存在，请先下载汉化文件。"
+            )
             return
 
         # For strings-zht.csv
@@ -702,7 +708,9 @@ class BF1ChsToolbox:
             console.print(f"[yellow]码表路径 {histogram_path} 不存在。")
             if self._rich_confirm(message="是否创建？"):
                 os.makedirs(histogram_path)
-                console.print(f"[yellow]请将导出后的码表文件放入路径 {histogram_path} 后重新选择本项。\n")
+                console.print(
+                    f"[yellow]请将导出后的码表文件放入路径 {histogram_path} 后重新选择本项。\n"
+                )
             return
 
         original_histogram_path = self._rich_fuzzy_select_file(
@@ -766,7 +774,9 @@ class BF1ChsToolbox:
             console.print(f"[yellow]本地化文件路径 {strings_path} 不存在。")
             if self._rich_confirm(message="是否创建？"):
                 os.makedirs(strings_path)
-                console.print(f"[yellow]请将导出后的本地化文件放入路径 {strings_path} 后重新选择本项。\n")
+                console.print(
+                    f"[yellow]请将导出后的本地化文件放入路径 {strings_path} 后重新选择本项。\n"
+                )
             return
 
         original_strings_path = self._rich_fuzzy_select_file(
@@ -810,7 +820,9 @@ class BF1ChsToolbox:
         # Load new strings json file
         artifact_path = os.path.abspath(self.config["paratranz.artifactPath"])
         if not os.path.exists(artifact_path):
-            console.print(f"[bold red]下载路径 {artifact_path} 不存在，请先下载汉化文件。")
+            console.print(
+                f"[bold red]下载路径 {artifact_path} 不存在，请先下载汉化文件。"
+            )
             return
 
         with open(
@@ -876,7 +888,9 @@ class BF1ChsToolbox:
             console.print(f"[yellow]字体文件路径 {font_path} 不存在。")
             if self._rich_confirm(message="是否创建？"):
                 os.makedirs(font_path)
-                console.print(f"[yellow]请将导出后的资源文件放入路径 {font_path} 后重新选择本项。\n")
+                console.print(
+                    f"[yellow]请将导出后的资源文件放入路径 {font_path} 后重新选择本项。\n"
+                )
             return
 
         original_res_path = self._rich_fuzzy_select_file(
@@ -922,7 +936,9 @@ class BF1ChsToolbox:
             console.print(f"[yellow]字体文件路径 {font_path} 不存在。")
             if self._rich_confirm(message="是否创建？"):
                 os.makedirs(font_path)
-                console.print(f"[yellow]请将导出后的字体文件放入路径 {font_path} 后重新选择本项。\n")
+                console.print(
+                    f"[yellow]请将导出后的字体文件放入路径 {font_path} 后重新选择本项。\n"
+                )
             return
 
         original_ttf_path = self._rich_fuzzy_select_file(
