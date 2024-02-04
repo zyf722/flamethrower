@@ -119,12 +119,12 @@ class BF1ChsToolbox:
             ),
             "paratranz.artifactPath": (
                 "artifact",
-                "汉化文件存放路径，可为相对路径。下载操作在此路径下进行。",
+                "下载的汉化文件存放路径，可为相对路径。",
                 *Validator.none_validator,
             ),
-            "paratranz.replacedPath": (
-                "artifact/replaced",
-                "替换术语后新生成的汉化文件存放路径，可为相对路径。替换与后续操作均在此路径下进行。",
+            "paratranz.processedPath": (
+                "artifact/processed",
+                "转换后的汉化文件存放路径，可为相对路径。",
                 *Validator.none_validator,
             ),
             "paratranz.conflictReport.filename": (
@@ -656,49 +656,48 @@ class BF1ChsToolbox:
             console.print("[bold red]汉化文件不完整，请重新下载汉化文件。")
             return
 
-        replaced_path = os.path.abspath(self.config["paratranz.replacedPath"])
-        if not os.path.exists(replaced_path):
-            os.makedirs(replaced_path)
+        processed_path = os.path.abspath(self.config["paratranz.processedPath"])
+        if not os.path.exists(processed_path):
+            os.makedirs(processed_path)
         else:
-            console.print(f"[yellow]替换路径 {replaced_path} 已存在。")
+            console.print(f"[yellow]处理后文件目录 {processed_path} 已存在。")
             if not self._rich_confirm(message="是否覆盖？"):
                 return
             console.print()
 
         def _replace_runner(
-            progress: Progress, task: TaskID, new_dict: Dict, save_name: str
+            progress: Progress,
+            task: TaskID,
+            data: List[Dict[str, Union[str, int, List[str]]]],
+            save_name: str,
         ):
-            for key in new_dict:
-                assert isinstance(new_dict[key], tuple)
+            data_processed = {}
 
+            for item in data:
                 # Stage code: https://paratranz.cn/docs
-                if new_dict[key][1] in (0, 1, 2):
-                    raw_string = new_dict[key][0]
+                if item["stage"] in (0, 1, 2):
                     for term in terms:
-                        raw_string = raw_string.replace(term, terms[term])
-                    new_dict[key] = raw_string
-                else:
-                    new_dict[key] = new_dict[key][0]
+                        assert isinstance(item["translation"], str)
+                        item["translation"] = item["translation"].replace(
+                            term, terms[term]
+                        )
+                data_processed[item["key"]] = item["translation"]
                 progress.advance(task)
 
             with open(
-                os.path.join(replaced_path, save_name),
+                os.path.join(artifact_path, save_name),
                 "w",
                 encoding="utf-8",
             ) as new_file:
-                json.dump(new_dict, new_file, indent=4, ensure_ascii=False)
-            progress.advance(task)
+                json.dump(data, new_file, indent=4, ensure_ascii=False)
 
-        def _load_raw_json(path: str) -> Dict:
-            original_json = open(
-                os.path.join(artifact_path, path),
-                "r",
+            with open(
+                os.path.join(processed_path, save_name),
+                "w",
                 encoding="utf-8",
-            )
-            return {
-                item["key"]: (item["translation"], item["stage"])
-                for item in json.load(original_json)
-            }
+            ) as new_file:
+                json.dump(data_processed, new_file, indent=4, ensure_ascii=False)
+            progress.advance(task)
 
         terms: Dict = self._rich_indeterminate_progress(
             task_name="从 ParaTranz 获取术语表",
@@ -726,13 +725,15 @@ class BF1ChsToolbox:
         console.print()
 
         for file, desc in ARTIFACT_MANIFEST.items():
-            new_dict = _load_raw_json(file)
+            with open(os.path.join(artifact_path, file), "r", encoding="utf-8") as f:
+                data = json.load(f)
+
             self._rich_progress(
-                task_name=f"替换{desc}",
-                short_name=f"替换 {file} ",
+                task_name=f"替换并处理{desc}",
+                short_name=f"替换并处理 {file} ",
                 actor=_replace_runner,
-                total=len(new_dict) + 1,
-                new_dict=new_dict,
+                total=len(data) + 1,
+                data=data,
                 save_name=file,
             )
 
@@ -859,15 +860,15 @@ class BF1ChsToolbox:
         self._rich_show_object(strings_binary)
 
         # Load new strings json file
-        replaced_path = os.path.abspath(self.config["paratranz.replacedPath"])
-        if not os.path.exists(replaced_path):
+        processed_path = os.path.abspath(self.config["paratranz.processedPath"])
+        if not os.path.exists(processed_path):
             console.print(
-                f"[bold red]替换路径 {replaced_path} 不存在，请先替换汉化文件。"
+                f"[bold red]处理后文件目录 {processed_path} 不存在，请先替换汉化文件。"
             )
             return
 
         with open(
-            os.path.join(replaced_path, "strings-zht.csv.json"),
+            os.path.join(processed_path, "strings-zht.csv.json"),
             "r",
             encoding="utf-8",
         ) as new_file:
@@ -942,10 +943,10 @@ class BF1ChsToolbox:
                 )
             return
 
-        replaced_path = os.path.abspath(self.config["paratranz.replacedPath"])
-        if not os.path.exists(replaced_path):
+        processed_path = os.path.abspath(self.config["paratranz.processedPath"])
+        if not os.path.exists(processed_path):
             console.print(
-                f"[bold red]替换路径 {replaced_path} 不存在，请先替换汉化文件。"
+                f"[bold red]处理后文件目录 {processed_path} 不存在，请先替换汉化文件。"
             )
             return
 
@@ -988,7 +989,7 @@ class BF1ChsToolbox:
 
         # Load new strings json file
         with open(
-            os.path.join(replaced_path, "strings-zht.csv.json"),
+            os.path.join(processed_path, "strings-zht.csv.json"),
             "r",
             encoding="utf-8",
         ) as new_file:
