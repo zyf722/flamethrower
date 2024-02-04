@@ -564,11 +564,17 @@ class BF1ChsToolbox:
             f"[yellow]下载路径：{os.path.abspath(self.config['paratranz.artifactPath'])}\n"
         )
 
+        def _skip_predicate(file: str) -> bool:
+            return (file.startswith("utf8/") and not file.endswith(".json")) or (
+                file.startswith("raw") and file.endswith(".json.json")
+            )
+
         self._rich_indeterminate_progress(
             task_name="从 ParaTranz 下载",
             short_name="下载",
             actor=self.paratranz_api.download_artifact,
             path=self.config["paratranz.artifactPath"],
+            skip_predicate=_skip_predicate,
         )
 
     def _replace(self):

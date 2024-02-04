@@ -4,7 +4,7 @@ from datetime import datetime
 from functools import wraps
 from io import BytesIO
 from pathlib import Path
-from typing import Optional, Union
+from typing import Callable, Optional, Union
 from zipfile import ZipFile
 
 from dateutil import tz
@@ -153,6 +153,7 @@ class ParaTranzAPI(BaseAPI):
         self,
         response: Optional[Response] = None,
         path: Union[str, Path] = Path("artifacts"),
+        skip_predicate: Callable[[str], bool] = lambda x: False,
     ) -> None:
         """
         Download the artifact from the project.
@@ -167,6 +168,9 @@ class ParaTranzAPI(BaseAPI):
         os.makedirs(path, exist_ok=True)
         with ZipFile(BytesIO(response.content)) as artifact:
             for file in artifact.namelist():
+                if skip_predicate(file):
+                    continue
+
                 dest = os.path.join(path, os.path.basename(file))
                 with open(dest, "wb") as f:
                     f.write(artifact.read(file))
