@@ -1,7 +1,7 @@
 import io
 import struct
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, Iterable, List, Optional, Set, Tuple, Union
 
 from .hash import fnv1_32_hash as loc_id_hash
 
@@ -120,13 +120,15 @@ class Histogram(ChunkData):
 
     def add_chars(
         self,
-        chars: List[str],
+        chars: Iterable[str],
     ) -> int:
         """
         Add chars to the histogram.
 
+        NOTE: Legacy method. Might get deprecated in the future.
+
         Args:
-            chars (List[str]): The chars to add.
+            chars (Iterable[str]): The chars to add.
 
         Returns:
             int: The amount of chars added.
@@ -151,6 +153,8 @@ class Histogram(ChunkData):
         """
         Add chars from a file to the histogram.
 
+        NOTE: Legacy method. Might get deprecated in the future.
+
         Args:
             file_path (str): The path to the file containing chars to add.
 
@@ -166,7 +170,7 @@ class Histogram(ChunkData):
 
         By doing this, we can allow more chars with larger code points to be used in the game.
 
-        This method is implemented by overwriting unused zero bytes in the beginning of the section.
+        NOTE: Legacy method. Might get deprecated in the future.
 
         Args:
             extra_shifts (int): The amount of extra shifts to add.
@@ -187,6 +191,78 @@ class Histogram(ChunkData):
         )
 
         self.section[index:index] = [chr(shift) for shift in extra_shifts_range]
+
+    def add_chars_from_strings(self, strings: Iterable[str]) -> int:
+        """
+        Add chars to the histogram. Necessary shifts will be added automatically.
+
+        Args:
+            strings (Iterable[str]): The strings containing chars to add.
+
+        Returns:
+            int: The amount of chars added.
+        """
+        assert self.fileSize is not None
+        assert self.dataOffSize is not None
+        assert self.section is not None
+
+        char_set: Set[str] = set()
+        for value in strings:
+            char_set.update(value)
+        chars = list(char_set - char_set.intersection(self.section))
+
+        # Calculate needed indices
+        shift_nums_index = 0x40
+        while shift_nums_index < 0xFF:
+            if self.section[shift_nums_index] != "\x00":
+                break
+            shift_nums_index += 1
+
+        inserted_start = self.dataOffSize - 1
+        shift_nums = [
+            chr(num) for num in range(2, ord(self.section[shift_nums_index]) + 1)
+        ]
+        shift_nums_count = len(shift_nums)
+
+        def calculate_byte_positions(chars):
+            return [
+                inserted_start + shift_nums_count + (shift_nums_index - 0x80) + i
+                for i in range(len(chars))
+            ]
+
+        def calculate_shift_nums_and_mappings(byte_positions):
+            shift_nums_set: set = set()
+            for char, byte in zip(chars, byte_positions):
+                shift_num = chr(byte // 0x80)
+                if ord(shift_num) >= 0x80:
+                    raise ValueError("Too much characters")
+                if shift_num not in shift_nums_set:
+                    shift_nums_set.add(shift_num)
+            return sorted(list(shift_nums_set), key=lambda x: ord(x))
+
+        while True:
+            new_shift_nums = calculate_shift_nums_and_mappings(
+                calculate_byte_positions(chars)
+            )
+            # The number of shift_nums doesn't change - the algorithm ends
+            if len(new_shift_nums) == shift_nums_count:
+                shift_nums = new_shift_nums
+                break
+            # Otherwise, update the number of shift_nums and repeat
+            shift_nums_count = len(new_shift_nums)
+
+        # Update the section
+        self.section = (
+            self.section[:0x80]
+            + shift_nums
+            + self.section[shift_nums_index:inserted_start]
+            + chars
+            + self.section[inserted_start:]
+        )
+
+        self.fileSize += len(chars)
+        self.dataOffSize += len(chars)
+        return len(chars)
 
     def save(self, file_path: str) -> None:
         """

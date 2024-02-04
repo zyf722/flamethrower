@@ -699,8 +699,10 @@ class BF1ChsToolbox:
             save_name=self.config["paratranz.newTwinkleFilename"],
         )
 
-    def _update_histogram(self):
+    def _update_histogram_legacy(self):
         """
+        Legacy method. Might get deprecated in the future.
+
         Update the histogram chunk file.
         """
         histogram_path = os.path.abspath(self.config["localization.histogramPath"])
@@ -765,8 +767,10 @@ class BF1ChsToolbox:
             f"[bold green]已完成码表更新。导入 Chunk 时请一并修改 HistogramChunkSize 为 [underline]{histogram.chunk_size}[/] 。\n"
         )
 
-    def _update_strings(self):
+    def _update_strings_legacy(self):
         """
+        Legacy method. Might get deprecated in the future.
+
         Update the strings chunk file.
         """
         strings_path = os.path.abspath(self.config["localization.stringsPath"])
@@ -871,6 +875,142 @@ class BF1ChsToolbox:
             short_name="保存",
             actor=_save_strings_binary_runner,
             histogram=Histogram(new_histogram_path),
+            file_path=new_strings_path,
+        )
+
+        self._rich_show_object(strings_binary)
+        console.print(
+            f"[bold green]已完成本地化文件更新。导入 Chunk 时请一并修改 BinaryChunkSize 为 [underline]{strings_binary.chunk_size}[/] 。\n"
+        )
+
+    def _update_strings(self):
+        """
+        Update the strings chunk file.
+        """
+        histogram_path = os.path.abspath(self.config["localization.histogramPath"])
+        if not os.path.exists(histogram_path):
+            console.print(f"[yellow]码表路径 {histogram_path} 不存在。")
+            if self._rich_confirm(message="是否创建？"):
+                os.makedirs(histogram_path)
+                console.print(
+                    f"[yellow]请将导出后的码表文件放入路径 {histogram_path} 后重新选择本项。\n"
+                )
+            return
+
+        strings_path = os.path.abspath(self.config["localization.stringsPath"])
+        if not os.path.exists(strings_path):
+            console.print(f"[yellow]本地化文件路径 {strings_path} 不存在。")
+            if self._rich_confirm(message="是否创建？"):
+                os.makedirs(strings_path)
+                console.print(
+                    f"[yellow]请将导出后的本地化文件放入路径 {strings_path} 后重新选择本项。\n"
+                )
+            return
+
+        artifact_path = os.path.abspath(self.config["paratranz.artifactPath"])
+        if not os.path.exists(artifact_path):
+            console.print(
+                f"[bold red]下载路径 {artifact_path} 不存在，请先下载汉化文件。"
+            )
+            return
+
+        original_histogram_path = self._rich_fuzzy_select_file(
+            directory=histogram_path,
+            types=[".chunk", ".bin"],
+            message="选择 Frosty Editor 导出的原始码表文件",
+        )
+        if original_histogram_path is None:
+            return
+
+        original_strings_path = self._rich_fuzzy_select_file(
+            directory=strings_path,
+            types=[".chunk", ".bin"],
+            message="选择 Frosty Editor 导出的原始本地化文件",
+        )
+        if original_strings_path is None:
+            return
+
+        histogram = Histogram(original_histogram_path)
+
+        console.print("[bold green]已读取原始码表文件。\n")
+        self._rich_show_object(histogram)
+
+        def _create_strings_binary_runner(
+            original_histogram_path: str, original_strings_path: str
+        ) -> StringsBinary:
+            return StringsBinary(
+                Histogram(original_histogram_path), original_strings_path
+            )
+
+        strings_binary: StringsBinary = self._rich_indeterminate_progress(
+            task_name="读取本地化文件",
+            short_name="读取",
+            actor=_create_strings_binary_runner,
+            original_histogram_path=original_histogram_path,
+            original_strings_path=original_strings_path,
+        )
+        self._rich_show_object(strings_binary)
+
+        # Load new strings json file
+        with open(
+            os.path.join(
+                artifact_path, self.config["paratranz.newStringsBinaryFilename"]
+            ),
+            "r",
+            encoding="utf-8",
+        ) as new_file:
+            new_dict = {
+                int(key, 16): value for key, value in json.load(new_file).items()
+            }
+
+        added = histogram.add_chars_from_strings(new_dict.values())
+        console.print(f"[bold green]已自动添加 {added} 个字符至码表。\n")
+
+        new_histogram_path = self._rich_text(
+            message="输入新的码表文件名",
+            default=f"new-{os.path.basename(original_histogram_path).rsplit('.', 1)[0]}.chunk",
+            filter=lambda x: os.path.join(histogram_path, x),
+        )
+        if os.path.exists(new_histogram_path):
+            console.print(f"[yellow]码表文件 {new_histogram_path} 已存在。\n")
+            if not self._rich_confirm(message="是否覆盖？"):
+                return
+            console.print()
+
+        histogram.save(new_histogram_path)
+
+        histogram = Histogram(new_histogram_path)
+        self._rich_show_object(histogram)
+        console.print(
+            f"[bold green]已完成码表更新。导入 Chunk 时请一并修改 HistogramChunkSize 为 [underline]{histogram.chunk_size}[/] 。\n"
+        )
+
+        self._rich_indeterminate_progress(
+            task_name="导入汉化至本地化文件",
+            short_name="导入",
+            actor=strings_binary.import_strings,
+            strings=new_dict,
+        )
+
+        new_strings_path = self._rich_text(
+            message="输入新的本地化文件名",
+            default=f"new-{os.path.basename(original_strings_path).rsplit('.', 1)[0]}.chunk",
+            filter=lambda x: os.path.join(strings_path, x),
+        )
+        if os.path.exists(new_strings_path):
+            console.print(f"[yellow]本地化文件 {new_strings_path} 已存在。\n")
+            if not self._rich_confirm(message="是否覆盖？"):
+                return
+            console.print()
+
+        def _save_strings_binary_runner(file_path: str):
+            strings_binary.update(histogram)
+            strings_binary.save(file_path)
+
+        self._rich_indeterminate_progress(
+            task_name="保存本地化文件",
+            short_name="保存",
+            actor=_save_strings_binary_runner,
             file_path=new_strings_path,
         )
 
@@ -1029,19 +1169,35 @@ class BF1ChsToolbox:
                                 "desc": "使用 ParaTranz 术语库对汉化文件进行替换，生成能够导入的 .json 文件。",
                                 "actor": self._replace,
                             },
-                            "histogram": {
-                                "name": "更新 Frosty Editor 码表 chunk 文件",
-                                "desc": "向导出的原始码表文件增加新的字符，并生成新的码表文件。",
-                                "actor": self._update_histogram,
-                            },
                             "strings": {
-                                "name": "更新 Frosty Editor 静态本地化 chunk 文件",
-                                "desc": "用替换后的 .json 汉化文件更新导出的原始本地化文件，并生成新的本地化文件。",
+                                "name": "生成 Frosty Editor 码表并更新静态本地化 chunk 文件",
+                                "desc": "根据替换后的 .json 汉化文件生成码表、更新导出的原始本地化文件，并生成新的本地化文件。",
                                 "actor": self._update_strings,
                             },
                             "twinkle": {
                                 "name": "更新 Frosty Editor 动态本地化 chunk 文件",
+                                "desc": "根据替换后的 .json 汉化文件生成可读取的动态本地化文件。",
                                 "actor": None,
+                            },
+                            "legacy": {
+                                "name": "旧版操作",
+                                "desc": "此部分包含为操作性或兼容性而保留的旧版功能。",
+                                "actor": BF1ChsToolbox.SelectAction(
+                                    title="旧版操作",
+                                    desc="此部分包含为操作性或兼容性而保留的旧版功能。",
+                                    choices={
+                                        "histogram_old": {
+                                            "name": "更新 Frosty Editor 码表 chunk 文件（旧版）",
+                                            "desc": "向导出的原始码表文件增加新的字符，并生成新的码表文件。",
+                                            "actor": self._update_histogram_legacy,
+                                        },
+                                        "strings_old": {
+                                            "name": "更新 Frosty Editor 静态本地化 chunk 文件（旧版）",
+                                            "desc": "用替换后的 .json 汉化文件更新导出的原始本地化文件，并生成新的本地化文件。",
+                                            "actor": self._update_strings_legacy,
+                                        },
+                                    },
+                                ),
                             },
                         },
                     ),
