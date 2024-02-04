@@ -728,7 +728,7 @@ class BF1ChsToolbox:
 
         new_histogram_path = self._rich_text(
             message="输入新的码表文件名",
-            default=f"new-{os.path.basename(original_histogram_path)}",
+            default=f"new-{os.path.basename(original_histogram_path).rsplit('.', 1)[0]}.chunk",
             filter=lambda x: os.path.join(histogram_path, x),
         )
         if os.path.exists(new_histogram_path):
@@ -828,7 +828,7 @@ class BF1ChsToolbox:
 
         new_strings_path = self._rich_text(
             message="输入新的本地化文件名",
-            default=f"new-{os.path.basename(original_strings_path)}",
+            default=f"new-{os.path.basename(original_strings_path).rsplit('.', 1)[0]}.chunk",
             filter=lambda x: os.path.join(strings_path, x),
         )
         if os.path.exists(new_strings_path):
