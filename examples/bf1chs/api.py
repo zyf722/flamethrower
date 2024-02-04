@@ -77,7 +77,22 @@ class BaseAPI(ABC):
         return f"{self.base_url}{endpoint}"
 
 
-class GithubAPI(BaseAPI):
+class SourceAPI(BaseAPI, ABC):
+    """
+    Base class for source code API.
+    """
+
+    @api_call(endpoint="/releases", method="GET")
+    def get_latest_asset(
+        self, response: Optional[Response] = None, asset_name: str = ""
+    ):
+        """
+        Get the latest release asset from the repo.
+        """
+        raise NotImplementedError
+
+
+class GithubAPI(SourceAPI):
     """
     Wrapper class to interact with Github API.
     """
@@ -99,24 +114,75 @@ class GithubAPI(BaseAPI):
             raise ValueError("Response is None.")
 
         latest_asset_url = ""
-        latest_published_time = datetime.min
+        latest_published_time = None
         latest_version = ""
         for release in response.json():
             if release["assets"]:
                 for asset in release["assets"]:
                     if asset_name in asset["name"]:
                         published_time = datetime.strptime(
-                            release["published_at"], "%Y-%m-%dT%H:%M:%SZ"
+                            release["published_at"], "%Y-%m-%dT%H:%M:%S%z"
                         )
-                        if published_time > latest_published_time:
+                        if (
+                            latest_published_time is None
+                            or published_time > latest_published_time
+                        ):
                             latest_published_time = published_time
                             latest_asset_url = asset["browser_download_url"]
                             latest_version = release["name"].split(" ")[-1]
 
+        assert latest_published_time is not None
         return (
             latest_asset_url,
             latest_version,
             from_utc_to_local(latest_published_time),
+        )
+
+
+class GiteeAPI(SourceAPI):
+    """
+    Wrapper class to interact with Gitee API.
+    """
+
+    def __init__(self, owner: str, repo: str) -> None:
+        super().__init__()
+        self.owner = owner
+        self.repo = repo
+        self.base_url = f"https://gitee.com/api/v5/repos/{self.owner}/{self.repo}"
+
+    @api_call(endpoint="/releases", method="GET")
+    def get_latest_asset(
+        self, response: Optional[Response] = None, asset_name: str = ""
+    ):
+        """
+        Get the latest release asset from the repo.
+        """
+        if response is None:
+            raise ValueError("Response is None.")
+
+        latest_asset_url = ""
+        latest_published_time = None
+        latest_version = ""
+        for release in response.json():
+            if release["assets"]:
+                for asset in release["assets"]:
+                    if "name" in asset and asset_name in asset["name"]:
+                        published_time = datetime.strptime(
+                            release["created_at"], "%Y-%m-%dT%H:%M:%S%z"
+                        )
+                        if (
+                            latest_published_time is None
+                            or published_time > latest_published_time
+                        ):
+                            latest_published_time = published_time
+                            latest_asset_url = asset["browser_download_url"]
+                            latest_version = release["name"].split(" ")[-1]
+
+        assert latest_published_time is not None
+        return (
+            latest_asset_url,
+            latest_version,
+            latest_published_time,
         )
 
 

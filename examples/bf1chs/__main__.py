@@ -6,10 +6,12 @@ import webbrowser
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 from api import (
+    GiteeAPI,
     GithubAPI,
     ParaTranzAPI,
     ProxyError,
     RequestException,
+    SourceAPI,
     URLlib3RequestError,
 )
 from conflict import Conflicts
@@ -35,7 +37,8 @@ from flamethrower.localization import Histogram, StringsBinary
 VERSION = "v0.2.0"
 PROJECT_ID = 8862
 REPO_NAME = "flamethrower"
-REPO_OWNER = "zyf722"
+REPO_OWNER_GITHUB = "zyf722"
+REPO_OWNER_GITEE = "bf1-chs"
 ASSET_NAME = "bf1chs.zip"
 
 ARTIFACT_MANIFEST = {
@@ -159,6 +162,12 @@ class BF1ChsToolbox:
                 "是否在启动时自动检查更新。",
                 lambda x: isinstance(x, bool),
                 "应为布尔值。",
+            ),
+            "meta.autoUpdate.source": (
+                "github",
+                "自动检查更新时使用的源。可选值：github / gitee。",
+                lambda x: x in ("github", "gitee"),
+                "应为 'github' 或 'gitee'。",
             ),
         }
 
@@ -559,12 +568,18 @@ class BF1ChsToolbox:
             raise BF1ChsToolbox.ExitException
 
         # Check for updates
-        self.github_api = GithubAPI(REPO_OWNER, REPO_NAME)
+        self.source_api: SourceAPI
+        if self.config["meta.autoUpdate.source"] == "github":
+            self.source_api = GithubAPI(REPO_OWNER_GITHUB, REPO_NAME)
+        else:
+            self.source_api = GiteeAPI(REPO_OWNER_GITEE, REPO_NAME)
+
         if self.config["meta.autoUpdate"]:
-            try:
-                self._check_update()
-            except Exception:
-                console.print("[bold red]检查更新失败。\n")
+            # try:
+            #     self._check_update()
+            # except Exception as e:
+            #     console.print(f"[bold red]检查更新失败: {e}\n")
+            self._check_update()
 
     def _check_manifest(self) -> bool:
         """
@@ -1143,7 +1158,7 @@ class BF1ChsToolbox:
                 latest_asset_url,
                 latest_version,
                 latest_published_time,
-            ) = self.github_api.get_latest_asset(ASSET_NAME)
+            ) = self.source_api.get_latest_asset(ASSET_NAME)
         except ProxyError as e:
             console.print("[bold red]代理错误。请检查代理设置是否正确。\n")
             raise e
