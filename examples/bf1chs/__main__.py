@@ -1192,6 +1192,15 @@ class BF1ChsToolbox:
             )
             return
 
+        report_path = os.path.join(
+            artifact_path, self.config["paratranz.conflictReport.filename"]
+        )
+        if os.path.exists(report_path):
+            console.print(f"[yellow]冲突报告文件 {report_path} 已存在。")
+            if not self._rich_confirm(message="是否覆盖？"):
+                return
+            console.print()
+
         conflicts = Conflicts(PROJECT_ID)
 
         def _conflicts_runner(
@@ -1223,9 +1232,6 @@ class BF1ChsToolbox:
                     file_name=file,
                 )
 
-        report_path = os.path.join(
-            artifact_path, self.config["paratranz.conflictReport.filename"]
-        )
         with open(report_path, "w", encoding="utf-8") as f:
             f.write(
                 conflicts.to_markdown(
