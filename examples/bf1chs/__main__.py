@@ -37,6 +37,19 @@ REPO_NAME = "flamethrower"
 REPO_OWNER = "zyf722"
 ASSET_NAME = "bf1chs.zip"
 
+ARTIFACT_MANIFEST = {
+    "strings-zht.csv.json": "静态本地化文件",
+    "twinkle.json": "动态本地化文件",
+    "bf2042.json": "额外动态本地化文件（战地风云 2042 相关）",
+    "bfv.json": "额外动态本地化文件（战地风云 V 相关）",
+    "codex.json": "额外动态本地化文件（百科）",
+    "dogtags.json": "额外动态本地化文件（狗牌）",
+    "generic.json": "额外动态本地化文件（通用）",
+    "news.json": "额外动态本地化文件（新闻）",
+    "store.json": "额外动态本地化文件（商店）",
+    "video.json": "额外动态本地化文件（视频）",
+}
+
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
 console = Console(
@@ -62,15 +75,25 @@ class BF1ChsToolbox:
         """
 
         # (default, description, validator, hint_message)
-        none_validator = ((lambda x: True), None)
-        json_validator = (
-            (
-                lambda x: bool(re.match(r'^[^<>:"/\\|?*]+\Z', x))
-                and len(x) <= 255
-                and x.endswith(".json")
-            ),
-            '文件名不应包含特殊字符（< > : " / \\ | ? *），文件名长度不应超过 255 个字符且应以 .json 结尾。',
-        )
+
+        class Validator:
+            none_validator = ((lambda x: True), None)
+
+            @staticmethod
+            def filename_validator(ext: str):
+                return (
+                    (
+                        lambda x: bool(re.match(r'^[^<>:"/\\|?*]+\Z', x))
+                        and len(x) <= 255
+                        and x.endswith(ext)
+                    ),
+                    f'文件名不应包含特殊字符（< > : " / \\ | ? *），文件名长度不应超过 255 个字符且应以 {ext} 结尾。',
+                )
+
+            positive_integer_validator = (
+                lambda x: isinstance(x, int) and x > 0,
+                "应为正整数。",
+            )
 
         schema: Dict[str, Tuple[Any, str, Callable[[Any], bool], Optional[str]]] = {
             "bf1chs.version": (
@@ -92,13 +115,13 @@ class BF1ChsToolbox:
             ),
             "paratranz.artifactPath": (
                 "artifact",
-                "汉化文件存放路径，可为相对路径。下载与替换操作均在此路径下进行。",
-                *none_validator,
+                "汉化文件存放路径，可为相对路径。下载操作在此路径下进行。",
+                *Validator.none_validator,
             ),
-            "paratranz.newStringsBinaryFilename": (
-                "new-strings.json",
-                "替换术语后新生成的静态本地化文件名，需以 .json 结尾。",
-                *json_validator,
+            "paratranz.replacedPath": (
+                "artifact/replaced",
+                "替换术语后新生成的汉化文件存放路径，可为相对路径。替换与后续操作均在此路径下进行。",
+                *Validator.none_validator,
             ),
             "paratranz.newTwinkleFilename": (
                 "new-twinkle.json",
@@ -108,23 +131,22 @@ class BF1ChsToolbox:
             "localization.histogramPath": (
                 "localization/histogram",
                 "码表文件存放路径，可为相对路径。",
-                *none_validator,
+                *Validator.none_validator,
             ),
             "localization.stringsPath": (
                 "localization/strings",
                 "本地化文件存放路径，可为相对路径。",
-                *none_validator,
+                *Validator.none_validator,
             ),
             "font.path": (
                 "font",
                 "字体文件存放路径，可为相对路径。",
-                *none_validator,
+                *Validator.none_validator,
             ),
             "ui.maxItems": (
                 10,
                 "本程序界面中最多显示的项目数，当项目数超过此值时会自动截断。对表格、列表等生效。",
-                lambda x: isinstance(x, int) and x > 0,
-                "应为正整数。",
+                *Validator.positive_integer_validator,
             ),
             "meta.autoUpdate": (
                 True,
@@ -172,6 +194,8 @@ class BF1ChsToolbox:
                         if not self.schema[key][2](value):
                             raise ValueError(key, self.schema[key][3])
                         self._config_dict[key] = value
+                else:
+                    console.print(f"[yellow]无效配置项 {key}，已忽略。")
 
         def show(self):
             console.print("[underline yellow]当前配置")
@@ -462,11 +486,6 @@ class BF1ChsToolbox:
             try:
                 with open("config.json", "r", encoding="utf-8") as f:
                     self.config = BF1ChsToolbox.Config.load(json.load(f))
-                self.config.show()
-                self.paratranz_api = ParaTranzAPI(
-                    self.config["paratranz.token"], PROJECT_ID
-                )
-
             except BF1ChsToolbox.IncompatibleConfigException:
                 console.print("[yellow]配置文件 config.json 版本不兼容。\n")
                 if self._rich_confirm(message="是否尝试升级？"):
@@ -486,6 +505,11 @@ class BF1ChsToolbox:
                         )
 
                     console.print("[bold green]配置文件升级成功。\n")
+            finally:
+                self.config.show()
+                self.paratranz_api = ParaTranzAPI(
+                    self.config["paratranz.token"], PROJECT_ID
+                )
 
         except FileNotFoundError:
             self.config = BF1ChsToolbox.Config()
@@ -535,6 +559,25 @@ class BF1ChsToolbox:
                 self._check_update()
             except Exception:
                 console.print("[bold red]检查更新失败。\n")
+
+    def _check_manifest(self) -> bool:
+        """
+        Check if all necessary files are present.
+        """
+        if not os.path.exists(self.config["paratranz.artifactPath"]):
+            console.print(
+                f"[bold red]下载路径 {os.path.abspath(self.config['paratranz.artifactPath'])} 不存在。"
+            )
+            return False
+
+        checked = True
+        artifact_directory = os.listdir(self.config["paratranz.artifactPath"])
+        for file in ARTIFACT_MANIFEST.keys():
+            if file not in artifact_directory:
+                console.print(f"[bold red]缺失{ARTIFACT_MANIFEST[file]} {file}。")
+                checked = False
+
+        return checked
 
     def _download(self):
         """
@@ -588,6 +631,19 @@ class BF1ChsToolbox:
             )
             return
 
+        if not self._check_manifest():
+            console.print("[bold red]汉化文件不完整，请重新下载汉化文件。")
+            return
+
+        replaced_path = os.path.abspath(self.config["paratranz.replacedPath"])
+        if not os.path.exists(replaced_path):
+            os.makedirs(replaced_path)
+        else:
+            console.print(f"[yellow]替换路径 {replaced_path} 已存在。")
+            if not self._rich_confirm(message="是否覆盖？"):
+                return
+            console.print()
+
         def _replace_runner(
             progress: Progress, task: TaskID, new_dict: Dict, save_name: str
         ):
@@ -605,7 +661,7 @@ class BF1ChsToolbox:
                 progress.advance(task)
 
             with open(
-                os.path.join(artifact_path, save_name),
+                os.path.join(replaced_path, save_name),
                 "w",
                 encoding="utf-8",
             ) as new_file:
@@ -648,61 +704,16 @@ class BF1ChsToolbox:
         console.print(terms_table)
         console.print()
 
-        # For strings-zht.csv
-        if os.path.exists(
-            os.path.join(
-                artifact_path, self.config["paratranz.newStringsBinaryFilename"]
+        for file, desc in ARTIFACT_MANIFEST.items():
+            new_dict = _load_raw_json(file)
+            self._rich_progress(
+                task_name=f"替换{desc}",
+                short_name=f"替换 {file} ",
+                actor=_replace_runner,
+                total=len(new_dict) + 1,
+                new_dict=new_dict,
+                save_name=file,
             )
-        ):
-            console.print(
-                f"[yellow]静态本地化文件 {self.config['paratranz.newStringsBinaryFilename']} 已存在。"
-            )
-            if not self._rich_confirm(message="是否覆盖？"):
-                return
-            console.print()
-
-        # NOTE: stop using csv
-        # original_csv = open(
-        #     os.path.join(artifact_path, "strings-zht.csv"),
-        #     "r",
-        #     encoding="utf-8-sig",  # However \ufeff still appears, why?
-        # )
-        # new_dict = {}
-        # for row in csv.reader(original_csv):
-        #     if row[0].startswith("\ufeff"):
-        #         row[0] = row[0][1:]
-        #     new_dict[row[0]] = row[2] if len(row) == 3 else row[1]
-
-        new_dict = _load_raw_json("strings-zht.csv.json")
-        self._rich_progress(
-            task_name="替换静态本地化文件",
-            short_name="替换静态本地化",
-            actor=_replace_runner,
-            total=len(new_dict) + 1,
-            new_dict=new_dict,
-            save_name=self.config["paratranz.newStringsBinaryFilename"],
-        )
-
-        # For twinkle.json
-        if os.path.exists(
-            os.path.join(artifact_path, self.config["paratranz.newTwinkleFilename"])
-        ):
-            console.print(
-                f"[yellow]动态本地化文件 {self.config['paratranz.newTwinkleFilename']} 已存在。"
-            )
-            if not self._rich_confirm(message="是否覆盖？"):
-                return
-            console.print()
-
-        new_dict = _load_raw_json("twinkle.json")
-        self._rich_progress(
-            task_name="替换动态本地化文件",
-            short_name="替换动态本地化",
-            actor=_replace_runner,
-            total=len(new_dict) + 1,
-            new_dict=new_dict,
-            save_name=self.config["paratranz.newTwinkleFilename"],
-        )
 
     def _update_histogram_legacy(self):
         """
@@ -827,17 +838,15 @@ class BF1ChsToolbox:
         self._rich_show_object(strings_binary)
 
         # Load new strings json file
-        artifact_path = os.path.abspath(self.config["paratranz.artifactPath"])
-        if not os.path.exists(artifact_path):
+        replaced_path = os.path.abspath(self.config["paratranz.replacedPath"])
+        if not os.path.exists(replaced_path):
             console.print(
-                f"[bold red]下载路径 {artifact_path} 不存在，请先下载汉化文件。"
+                f"[bold red]替换路径 {replaced_path} 不存在，请先替换汉化文件。"
             )
             return
 
         with open(
-            os.path.join(
-                artifact_path, self.config["paratranz.newStringsBinaryFilename"]
-            ),
+            os.path.join(replaced_path, "strings-zht.csv.json"),
             "r",
             encoding="utf-8",
         ) as new_file:
@@ -912,10 +921,10 @@ class BF1ChsToolbox:
                 )
             return
 
-        artifact_path = os.path.abspath(self.config["paratranz.artifactPath"])
-        if not os.path.exists(artifact_path):
+        replaced_path = os.path.abspath(self.config["paratranz.replacedPath"])
+        if not os.path.exists(replaced_path):
             console.print(
-                f"[bold red]下载路径 {artifact_path} 不存在，请先下载汉化文件。"
+                f"[bold red]替换路径 {replaced_path} 不存在，请先替换汉化文件。"
             )
             return
 
@@ -958,9 +967,7 @@ class BF1ChsToolbox:
 
         # Load new strings json file
         with open(
-            os.path.join(
-                artifact_path, self.config["paratranz.newStringsBinaryFilename"]
-            ),
+            os.path.join(replaced_path, "strings-zht.csv.json"),
             "r",
             encoding="utf-8",
         ) as new_file:
