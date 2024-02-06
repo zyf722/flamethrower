@@ -79,17 +79,40 @@ class BaseAPI(ABC):
 
 class SourceAPI(BaseAPI, ABC):
     """
-    Base class for source code API.
+    Base class for update source API. Basically it should be a Github-like API.
     """
 
-    @api_call(endpoint="/releases", method="GET")
     def get_latest_asset(
-        self, response: Optional[Response] = None, asset_name: str = ""
+        self, time_key: str, response: Optional[Response] = None, asset_name: str = ""
     ):
         """
         Get the latest release asset from the repo.
         """
-        raise NotImplementedError
+        if response is None:
+            raise ValueError("Response is None.")
+
+        latest_asset_url = ""
+        latest_published_time = None
+        latest_version = ""
+        latest_log = ""
+        for release in response.json():
+            if release["assets"]:
+                for asset in release["assets"]:
+                    if "name" in asset and asset_name in asset["name"]:
+                        published_time = datetime.strptime(
+                            release[time_key], "%Y-%m-%dT%H:%M:%S%z"
+                        )
+                        if (
+                            latest_published_time is None
+                            or published_time > latest_published_time
+                        ):
+                            latest_published_time = published_time
+                            latest_asset_url = asset["browser_download_url"]
+                            latest_version = release["name"].split(" ")[-1]
+                            latest_log = release["body"]
+
+        assert latest_published_time is not None
+        return (latest_asset_url, latest_version, latest_published_time, latest_log)
 
 
 class GithubAPI(SourceAPI):
@@ -110,32 +133,14 @@ class GithubAPI(SourceAPI):
         """
         Get the latest release asset from the repo.
         """
-        if response is None:
-            raise ValueError("Response is None.")
-
-        latest_asset_url = ""
-        latest_published_time = None
-        latest_version = ""
-        for release in response.json():
-            if release["assets"]:
-                for asset in release["assets"]:
-                    if asset_name in asset["name"]:
-                        published_time = datetime.strptime(
-                            release["published_at"], "%Y-%m-%dT%H:%M:%S%z"
-                        )
-                        if (
-                            latest_published_time is None
-                            or published_time > latest_published_time
-                        ):
-                            latest_published_time = published_time
-                            latest_asset_url = asset["browser_download_url"]
-                            latest_version = release["name"].split(" ")[-1]
-
-        assert latest_published_time is not None
+        latest_asset_url, latest_version, latest_published_time, latest_log = (
+            super().get_latest_asset("published_at", response, asset_name)
+        )
         return (
             latest_asset_url,
             latest_version,
             from_utc_to_local(latest_published_time),
+            latest_log,
         )
 
 
@@ -157,33 +162,7 @@ class GiteeAPI(SourceAPI):
         """
         Get the latest release asset from the repo.
         """
-        if response is None:
-            raise ValueError("Response is None.")
-
-        latest_asset_url = ""
-        latest_published_time = None
-        latest_version = ""
-        for release in response.json():
-            if release["assets"]:
-                for asset in release["assets"]:
-                    if "name" in asset and asset_name in asset["name"]:
-                        published_time = datetime.strptime(
-                            release["created_at"], "%Y-%m-%dT%H:%M:%S%z"
-                        )
-                        if (
-                            latest_published_time is None
-                            or published_time > latest_published_time
-                        ):
-                            latest_published_time = published_time
-                            latest_asset_url = asset["browser_download_url"]
-                            latest_version = release["name"].split(" ")[-1]
-
-        assert latest_published_time is not None
-        return (
-            latest_asset_url,
-            latest_version,
-            latest_published_time,
-        )
+        return super().get_latest_asset("created_at", response, asset_name)
 
 
 class ParaTranzAPI(BaseAPI):
