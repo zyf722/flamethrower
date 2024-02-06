@@ -20,6 +20,7 @@ from InquirerPy.base.control import Choice
 from InquirerPy.separator import Separator
 from rich import box
 from rich.console import Console
+from rich.markdown import Markdown
 from rich.progress import (
     BarColumn,
     MofNCompleteColumn,
@@ -34,7 +35,7 @@ from rich.theme import Theme
 
 from flamethrower.localization import Histogram, StringsBinary
 
-VERSION = "v0.3.0"
+VERSION = "v0.3.1"
 PROJECT_ID = 8862
 REPO_NAME = "flamethrower"
 REPO_OWNER_GITHUB = "zyf722"
@@ -57,7 +58,16 @@ ARTIFACT_MANIFEST = {
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
 console = Console(
-    theme=Theme({"dark-gray": "#5c6370", "light-blue": "#61afef"}),
+    theme=Theme(
+        {
+            "dark-gray": "#5c6370",
+            "light-blue": "#61afef",
+            # Override rich's default theme
+            "markdown.item.bullet": "yellow",
+            "markdown.link_url": "#61afef",
+            "markdown.code": "#e83e8c",
+        }
+    ),
     highlight=False,
 )
 
@@ -1247,11 +1257,9 @@ class BF1ChsToolbox:
         """
         console.print("[yellow]正在检查更新...")
         try:
-            (
-                latest_asset_url,
-                latest_version,
-                latest_published_time,
-            ) = self.source_api.get_latest_asset(ASSET_NAME)
+            (latest_asset_url, latest_version, latest_published_time, latest_log) = (
+                self.source_api.get_latest_asset(ASSET_NAME)
+            )
         except ProxyError as e:
             console.print("[bold red]代理错误。请检查代理设置是否正确。\n")
             raise e
@@ -1267,6 +1275,9 @@ class BF1ChsToolbox:
             console.print(
                 f"[yellow]发现新版本 {latest_version}，发布于 {latest_published_time.strftime('%Y年%m月%d日 %H:%M:%S')}。\n"
             )
+            console.print("[underline yellow]更新日志：")
+            console.print(Markdown(latest_log.split("## `bf1chs`\r\n")[1]))
+            console.print()
             if self._rich_confirm(message="是否立即下载？"):
                 webbrowser.open(latest_asset_url)
                 raise BF1ChsToolbox.ExitException
