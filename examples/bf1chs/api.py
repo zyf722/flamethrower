@@ -265,4 +265,3 @@ class ParaTranzAPI(BaseAPI):
             terms[term["term"]] = term["translation"]
 
         return terms
-        return terms
