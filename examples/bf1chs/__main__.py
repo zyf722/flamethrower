@@ -721,6 +721,7 @@ class BF1ChsToolbox:
             actor=self.paratranz_api.get_terms,
         )
         if terms is None:
+            console.print("[bold red]术语表获取失败。")
             return
         console.print(f"[underline yellow]术语表（共 {len(terms)} 项）")
 
