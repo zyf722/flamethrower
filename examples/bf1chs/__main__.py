@@ -741,6 +741,9 @@ class BF1ChsToolbox:
         console.print(terms_table)
         console.print()
 
+        # Deal with newline
+        terms["\\n"] = "\n"
+
         for file, desc in ARTIFACT_MANIFEST.items():
             with open(os.path.join(artifact_path, file), "r", encoding="utf-8") as f:
                 data = json.load(f)
