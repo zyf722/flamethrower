@@ -1276,7 +1276,7 @@ class BF1ChsToolbox:
                 f"[yellow]发现新版本 {latest_version}，发布于 {latest_published_time.strftime('%Y年%m月%d日 %H:%M:%S')}。\n"
             )
             console.print("[underline yellow]更新日志：")
-            console.print(Markdown(latest_log.split("## `bf1chs`\r\n")[1]))
+            console.print(Markdown(latest_log))
             console.print()
             if self._rich_confirm(message="是否立即下载？"):
                 webbrowser.open(latest_asset_url)

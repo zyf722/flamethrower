@@ -109,7 +109,7 @@ class SourceAPI(BaseAPI, ABC):
                             latest_published_time = published_time
                             latest_asset_url = asset["browser_download_url"]
                             latest_version = release["name"].split(" ")[-1]
-                            latest_log = release["body"]
+                            latest_log = release["body"].split("## `bf1chs`\r\n")[1]
 
         assert latest_published_time is not None
         return (latest_asset_url, latest_version, latest_published_time, latest_log)
