@@ -32,6 +32,7 @@ from rich.progress import (
 )
 from rich.table import Table
 from rich.theme import Theme
+from ttffont import TTFInfo
 
 from flamethrower.localization import Histogram, StringsBinary
 
@@ -1237,18 +1238,24 @@ class BF1ChsToolbox:
             console.print()
 
         def _convert_runner(original_ttf_path: str, new_res_path: str):
+            ttf_obj = TTFInfo(original_ttf_path)
             with open(original_ttf_path, "rb") as original_ttf:
                 with open(new_res_path, "wb") as new_res:
                     # Write the first 16 bytes
                     new_res.write(b"\x00" * 16)
                     new_res.write(original_ttf.read())
+            return ttf_obj["NAME"]
 
-        self._rich_indeterminate_progress(
+        font_family = self._rich_indeterminate_progress(
             task_name="转换字体资源文件",
             short_name="转换",
             actor=_convert_runner,
             original_ttf_path=original_ttf_path,
             new_res_path=new_res_path,
+        )
+
+        console.print(
+            f"[bold green]已完成字体转换。导入字体资源时请一并修改 FontFamily 为 [underline]{font_family}[/] 。\n"
         )
 
     def _check_update(self):
