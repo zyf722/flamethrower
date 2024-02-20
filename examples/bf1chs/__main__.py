@@ -165,7 +165,7 @@ class BF1ChsToolbox:
             ),
             "localization.twinkleFilename": (
                 "BF1CHS_twinkle_extra.json",
-                "动态本地化文件存放路径，可为相对路径。",
+                "默认动态本地化文件名，需以 .json 结尾。",
                 *Validator.filename_validator(".json"),
             ),
             "font.path": (
