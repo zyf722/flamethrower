@@ -700,14 +700,23 @@ class BF1ChsToolbox:
         ):
             data_processed = {}
 
-            for item in data:
+            for i in range(len(data)):
+                item = data[i]
+                assert isinstance(item["translation"], str)
+                assert isinstance(item["original"], str)
+
+                # Deal with newlines
+                item["translation"] = item["translation"].replace("\\n", "\n")
+                item["original"] = item["original"].replace("\\n", "\n")
+
                 # Stage code: https://paratranz.cn/docs
                 if item["stage"] in (0, 1, 2):
                     for term in terms:
-                        assert isinstance(item["translation"], str)
                         item["translation"] = item["translation"].replace(
                             term, terms[term]
                         )
+
+                data[i] = item
                 data_processed[item["key"]] = item["translation"]
                 progress.advance(task)
 
@@ -751,9 +760,6 @@ class BF1ChsToolbox:
             terms_table.add_row(key, value)
         console.print(terms_table)
         console.print()
-
-        # Deal with newline
-        terms["\\n"] = "\n"
 
         for file, desc in ARTIFACT_MANIFEST.items():
             with open(os.path.join(artifact_path, file), "r", encoding="utf-8") as f:
