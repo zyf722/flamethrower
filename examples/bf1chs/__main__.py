@@ -54,6 +54,9 @@ ARTIFACT_MANIFEST = {
     "news.json": "额外动态本地化文件（新闻）",
     "store.json": "额外动态本地化文件（商店）",
     "video.json": "额外动态本地化文件（视频）",
+    "eaplay.json": "额外动态本地化文件（EA Play）",
+    "bf4.json": "额外动态本地化文件（战地风云 4 相关）",
+    "bfhl.json": "额外动态本地化文件（战地风云：硬仗相关）",
 }
 
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
