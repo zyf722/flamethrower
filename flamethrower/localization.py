@@ -260,8 +260,6 @@ class Histogram(ChunkData):
             + self.section[inserted_start:]
         )
 
-        self.fileSize += len(chars)
-        self.dataOffSize += len(chars)
         return len(chars)
 
     def save(self, file_path: str) -> None:
@@ -285,6 +283,11 @@ class Histogram(ChunkData):
                     )
                 else:
                     file.write(struct.pack("H", char_code))
+
+            # Update fileSize
+            self.fileSize = file.tell() - 8
+            file.seek(4)
+            file.write(struct.pack("I", self.fileSize))
 
     @property
     def chunk_size(self) -> int:
