@@ -22,5 +22,23 @@ The package only supports the following features now:
 
 Examples of how to use the package are available in the `examples` directory. There is only one example now, which is an interactive toolbox for Chinese localization of Battlefield 1 (with UI in Chinese). More examples are welcomed.
 
+## Contributing
+Though the package is still in its early stages of development, [Pull Requests](https://github.com/zyf722/flamethrower/pulls) are welcome.
+
+You can setup your own copy of the source code with Git and [Poetry](https://python-poetry.org/):
+
+```shell
+# Git
+git clone https://github.com/zyf722/flamethrower.git
+cd flamethrower/
+
+# Poetry
+poetry lock
+poetry install
+poetry shell
+```
+
+It is strongly recommended to follow the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification when writing commit messages and creating pull requests.
+
 ## License
 [GPL-3.0](/LICENSE)
