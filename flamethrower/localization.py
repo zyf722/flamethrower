@@ -209,7 +209,7 @@ class Histogram(ChunkData):
         char_set: Set[str] = set()
         for value in strings:
             char_set.update(value)
-        chars = list(char_set - char_set.intersection(self.section))
+        chars = list(char_set.difference(self.section))
 
         # Calculate needed indices
         shift_nums_index = 0x40
@@ -259,6 +259,7 @@ class Histogram(ChunkData):
             + chars
             + self.section[inserted_start:]
         )
+        self.dataOffSize += len(chars)
 
         return len(chars)
 
