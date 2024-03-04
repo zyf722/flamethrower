@@ -743,7 +743,6 @@ class BF1ChsToolbox:
             actor=self.paratranz_api.get_terms,
         )
         if terms is None:
-            console.print("[bold red]术语表获取失败。")
             return
         console.print(f"[underline yellow]术语表（共 {len(terms)} 项）")
 
@@ -842,6 +841,9 @@ class BF1ChsToolbox:
             original_histogram_path=original_histogram_path,
             original_strings_path=original_strings_path,
         )
+        if strings_binary is None:
+            return
+
         self._rich_show_object(strings_binary)
 
         # Load new strings json file
@@ -850,7 +852,7 @@ class BF1ChsToolbox:
             "r",
             encoding="utf-8",
         ) as new_file:
-            new_dict = {
+            new_dict: Dict[int, str] = {
                 int(key, 16): value for key, value in json.load(new_file).items()
             }
 
@@ -876,12 +878,19 @@ class BF1ChsToolbox:
             f"[bold green]已完成码表更新。导入 Chunk 时请一并修改 HistogramChunkSize 为 [underline]{histogram.chunk_size}[/] 。\n"
         )
 
-        self._rich_indeterminate_progress(
-            task_name="导入汉化至本地化文件",
-            short_name="导入",
-            actor=strings_binary.import_strings,
-            strings=new_dict,
-        )
+        def _import_strings_wrapper():
+            strings_binary.import_strings(new_dict)  # type: ignore
+            return True
+
+        if (
+            self._rich_indeterminate_progress(
+                task_name="导入汉化至本地化文件",
+                short_name="导入",
+                actor=_import_strings_wrapper,
+            )
+            is None
+        ):
+            return
 
         new_strings_path = self._rich_text(
             message="输入新的本地化文件名",
@@ -897,13 +906,18 @@ class BF1ChsToolbox:
         def _save_strings_binary_runner(file_path: str):
             strings_binary.update(histogram)
             strings_binary.save(file_path)
+            return True
 
-        self._rich_indeterminate_progress(
-            task_name="保存本地化文件",
-            short_name="保存",
-            actor=_save_strings_binary_runner,
-            file_path=new_strings_path,
-        )
+        if (
+            self._rich_indeterminate_progress(
+                task_name="保存本地化文件",
+                short_name="保存",
+                actor=_save_strings_binary_runner,
+                file_path=new_strings_path,
+            )
+            is None
+        ):
+            return
 
         self._rich_show_object(strings_binary)
         console.print(
@@ -935,11 +949,11 @@ class BF1ChsToolbox:
             with open(os.path.join(artifact_path, file), "r", encoding="utf-8") as f:
                 entries.extend(json.load(f))
 
-        twinkle_file_path = self._rich_text(
+        twinkle_file_name = self._rich_text(
             message="输入新的本地化文件名",
             default=self.config["localization.twinkleFilename"],
-            filter=lambda x: os.path.join(twinkle_path, x),
         )
+        twinkle_file_path = os.path.join(twinkle_path, twinkle_file_name)
         if os.path.exists(twinkle_file_path):
             console.print(f"[yellow]本地化文件 {twinkle_file_path} 已存在。\n")
             if not self._rich_confirm(message="是否覆盖？"):
@@ -977,7 +991,9 @@ class BF1ChsToolbox:
             entries=entries,
         )
 
-        if conflict_count > 0:
+        if conflict_count is None:
+            return
+        elif conflict_count > 0:
             console.print(
                 f"[bold red]导出时发现 {conflict_count} 个译文不一致冲突，请手动检测冲突查看。\n"
             )
@@ -1194,6 +1210,7 @@ class BF1ChsToolbox:
                         obj["translation"],
                     )
                     progress.advance(task)
+            return True
 
         for file in ARTIFACT_MANIFEST:
             with open(os.path.join(artifact_path, file), "r", encoding="utf-8") as f:
@@ -1202,14 +1219,18 @@ class BF1ChsToolbox:
                     console.print(f"[bold red]{file} 文件格式错误，跳过。")
                     continue
 
-                self._rich_progress(
-                    task_name=f"检测{ARTIFACT_MANIFEST[file]}",
-                    short_name=f"检测 {file} ",
-                    actor=_conflicts_runner,
-                    total=len(data),
-                    data=data,
-                    file_name=file,
-                )
+                if (
+                    self._rich_progress(
+                        task_name=f"检测{ARTIFACT_MANIFEST[file]}",
+                        short_name=f"检测 {file} ",
+                        actor=_conflicts_runner,
+                        total=len(data),
+                        data=data,
+                        file_name=file,
+                    )
+                    is None
+                ):
+                    return
 
         with open(report_path, "w", encoding="utf-8") as f:
             f.write(
