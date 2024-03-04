@@ -924,6 +924,136 @@ class BF1ChsToolbox:
             f"[bold green]已完成本地化文件更新。导入 Chunk 时请一并修改 BinaryChunkSize 为 [underline]{strings_binary.chunk_size}[/] 。\n"
         )
 
+    def _update_histogram(self):
+        """
+        Update the histogram chunk file only.
+        """
+        histogram_path = os.path.abspath(self.config["localization.histogramPath"])
+        if not os.path.exists(histogram_path):
+            console.print(f"[yellow]码表路径 {histogram_path} 不存在。")
+            if self._rich_confirm(message="是否创建？"):
+                os.makedirs(histogram_path)
+                console.print(
+                    f"[yellow]请将导出后的码表文件放入路径 {histogram_path} 后重新选择本项。\n"
+                )
+            return
+
+        strings_path = os.path.abspath(self.config["localization.stringsPath"])
+        if not os.path.exists(strings_path):
+            console.print(f"[yellow]本地化文件路径 {strings_path} 不存在。")
+            if self._rich_confirm(message="是否创建？"):
+                os.makedirs(strings_path)
+                console.print(
+                    f"[yellow]请将导出后的本地化文件放入路径 {strings_path} 后重新选择本项。\n"
+                )
+            return
+
+        original_histogram_path = self._rich_fuzzy_select_file(
+            directory=histogram_path,
+            types=[".chunk", ".bin"],
+            message="选择需要更新的原始码表文件",
+        )
+        if original_histogram_path is None:
+            return
+
+        extra_chars_path = self._rich_fuzzy_select_file(
+            directory=histogram_path,
+            types=[".txt"],
+            message="选择额外字符列表文件",
+        )
+        if extra_chars_path is None:
+            return
+
+        original_strings_path = self._rich_fuzzy_select_file(
+            directory=strings_path,
+            types=[".chunk", ".bin"],
+            message="选择需要更新的原始本地化文件",
+        )
+        if original_strings_path is None:
+            return
+
+        histogram = Histogram(original_histogram_path)
+
+        console.print("[bold green]已读取原始码表文件。\n")
+        self._rich_show_object(histogram)
+
+        def _create_strings_binary_runner(
+            original_histogram_path: str, original_strings_path: str
+        ) -> StringsBinary:
+            return StringsBinary(
+                Histogram(original_histogram_path), original_strings_path
+            )
+
+        strings_binary: StringsBinary = self._rich_indeterminate_progress(
+            task_name="读取本地化文件",
+            short_name="读取",
+            actor=_create_strings_binary_runner,
+            original_histogram_path=original_histogram_path,
+            original_strings_path=original_strings_path,
+        )
+        if strings_binary is None:
+            return
+
+        self._rich_show_object(strings_binary)
+
+        # Load new chars file
+        with open(extra_chars_path, "r", encoding="utf-8") as f:
+            extra_chars = f.read().splitlines()
+
+        added = histogram.add_chars_from_strings([], extra_chars)
+        console.print(f"[bold green]已添加 {added} 个字符至码表。\n")
+
+        new_histogram_path = self._rich_text(
+            message="输入新的码表文件名",
+            default=f"new-{os.path.basename(original_histogram_path).rsplit('.', 1)[0]}.chunk",
+            filter=lambda x: os.path.join(histogram_path, x),
+        )
+        if os.path.exists(new_histogram_path):
+            console.print(f"[yellow]码表文件 {new_histogram_path} 已存在。\n")
+            if not self._rich_confirm(message="是否覆盖？"):
+                return
+            console.print()
+
+        histogram.save(new_histogram_path)
+
+        histogram = Histogram(new_histogram_path)
+        self._rich_show_object(histogram)
+        console.print(
+            f"[bold green]已完成码表更新。导入 Chunk 时请一并修改 HistogramChunkSize 为 [underline]{histogram.chunk_size}[/] 。\n"
+        )
+
+        new_strings_path = self._rich_text(
+            message="输入新的本地化文件名",
+            default=f"new-{os.path.basename(original_strings_path).rsplit('.', 1)[0]}.chunk",
+            filter=lambda x: os.path.join(strings_path, x),
+        )
+        if os.path.exists(new_strings_path):
+            console.print(f"[yellow]本地化文件 {new_strings_path} 已存在。\n")
+            if not self._rich_confirm(message="是否覆盖？"):
+                return
+            console.print()
+
+        def _save_strings_binary_runner(file_path: str):
+            strings_binary.update(histogram)
+            strings_binary.save(file_path)
+            return True
+
+        if (
+            self._rich_indeterminate_progress(
+                task_name="保存本地化文件",
+                short_name="保存",
+                actor=_save_strings_binary_runner,
+                file_path=new_strings_path,
+            )
+            is None
+        ):
+            return
+
+        self._rich_show_object(strings_binary)
+        console.print(
+            f"[bold green]已完成本地化文件更新。导入 Chunk 时请一并修改 BinaryChunkSize 为 [underline]{strings_binary.chunk_size}[/] 。\n"
+        )
+
     def _update_twinkle(self):
         """
         Generate twinkle dynamic files.
@@ -1274,6 +1404,11 @@ class BF1ChsToolbox:
                                 "name": "生成 Frosty Editor 码表并更新静态本地化 chunk 文件",
                                 "desc": "根据替换后的 .json 汉化文件生成码表、更新导出的原始本地化文件，并生成新的本地化文件。",
                                 "actor": self._update_strings,
+                            },
+                            "update-histogram": {
+                                "name": "生成 Frosty Editor 码表并更新静态本地化 chunk 文件（仅插入新字符）",
+                                "desc": "将给定的字符列表文件中的字符序列加入码表、更新导出的原始本地化文件，并生成新的本地化文件。本功能仅基于输入的字符列表文件，不会对原有的码表和本地化文件进行修改。",
+                                "actor": self._update_histogram,
                             },
                             "twinkle": {
                                 "name": "更新 Frosty Editor 动态本地化 chunk 文件",

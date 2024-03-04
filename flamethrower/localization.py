@@ -118,12 +118,15 @@ class Histogram(ChunkData):
             ):
                 self.section.append(chr(char))
 
-    def add_chars_from_strings(self, strings: Iterable[str]) -> int:
+    def add_chars_from_strings(
+        self, strings: Iterable[str], extra_chars: Optional[Iterable[str]] = None
+    ) -> int:
         """
         Add chars to the histogram. Necessary shifts will be added automatically.
 
         Args:
             strings (Iterable[str]): The strings containing chars to add.
+            extra_chars (Optional[Iterable[str]]): Extra chars to add. Each str should only be one char.
 
         Returns:
             int: The amount of chars added.
@@ -135,6 +138,10 @@ class Histogram(ChunkData):
         char_set: Set[str] = set()
         for value in strings:
             char_set.update(value)
+
+        if extra_chars:
+            char_set.update(extra_chars)
+
         chars = list(char_set.difference(self.section))
 
         # Calculate needed indices
