@@ -1,5 +1,6 @@
 import json
 import os
+import platform
 import re
 import textwrap
 import webbrowser
@@ -567,8 +568,6 @@ class BF1ChsToolbox:
             console.print("[yellow]请修改配置文件 config.json 后重新运行。")
 
             if self._rich_confirm(message="是否立刻打开配置文件？"):
-                import platform
-
                 if platform.system() == "Windows":
                     os.startfile("config.json")
                 elif platform.system() == "Darwin":
@@ -982,6 +981,39 @@ class BF1ChsToolbox:
             console.print(
                 f"[bold red]导出时发现 {conflict_count} 个译文不一致冲突，请手动检测冲突查看。\n"
             )
+
+        if platform.system() == "Windows":
+            if self._rich_confirm(message="是否复制到 twinkle/assets 文件夹？"):
+                # Code from https://stackoverflow.com/questions/6227590/finding-the-users-my-documents-path/30924555
+
+                import ctypes.wintypes
+
+                buf = ctypes.create_unicode_buffer(ctypes.wintypes.MAX_PATH)
+                ctypes.windll.shell32.SHGetFolderPathW(None, 5, None, 0, buf)
+                asset_path = os.path.join(
+                    buf.value, "Battlefield 1", "twinkle", "assets"
+                )
+
+                if not os.path.exists(asset_path):
+                    console.print(
+                        f"[yellow]twinkle/assets 文件夹 {asset_path} 不存在。"
+                    )
+                else:
+                    if os.path.exists(os.path.join(asset_path, twinkle_file_name)):
+                        console.print(f"[yellow]文件 {twinkle_file_name} 已存在。\n")
+                        if not self._rich_confirm(message="是否覆盖？"):
+                            return
+                        console.print()
+
+                    import shutil
+
+                    try:
+                        shutil.copy(twinkle_file_path, asset_path)
+                        console.print(
+                            f"[bold green]已复制文件 {twinkle_file_name} 至 {asset_path}。\n"
+                        )
+                    except Exception as e:
+                        console.print(f"[bold red]复制失败：{e}\n")
 
     def _res2ttf(self):
         """
