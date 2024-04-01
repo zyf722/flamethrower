@@ -37,7 +37,7 @@ from ttffont import TTFInfo
 
 from flamethrower.localization import Histogram, StringsBinary
 
-VERSION = "v0.5.0"
+VERSION = "v0.5.1"
 PROJECT_ID = 8862
 REPO_NAME = "flamethrower"
 REPO_OWNER_GITHUB = "zyf722"
@@ -419,11 +419,13 @@ class BF1ChsToolbox:
             return None
 
     @staticmethod
-    def _rich_confirm(message: str, default=True, **kwargs):
+    def _rich_confirm(message: str, default=True, desc: Optional[str] = None, **kwargs):
         """
         Helper function to show confirm in rich format.
         """
         console.print("[dark-gray]（输入 y/n 或者回车键直接确认）")
+        if desc is not None:
+            console.print(f"[dark-gray]（{desc}）")
         return inquirer.confirm(
             message=message,
             default=default,
@@ -434,11 +436,15 @@ class BF1ChsToolbox:
         ).execute()
 
     @staticmethod
-    def _rich_integer(message: str, default: int = 0, **kwargs):
+    def _rich_integer(
+        message: str, default: int = 0, desc: Optional[str] = None, **kwargs
+    ):
         """
         Helper function to show integer in rich format.
         """
         console.print("[dark-gray]（使用方向键上下增减 / 数字键输入数字 / 回车键确认）")
+        if desc is not None:
+            console.print(f"[dark-gray]（{desc}）")
         result = inquirer.number(
             message=message,
             default=default,
@@ -448,11 +454,15 @@ class BF1ChsToolbox:
         return int(result)
 
     @staticmethod
-    def _rich_text(message: str, default: str = "", **kwargs):
+    def _rich_text(
+        message: str, default: str = "", desc: Optional[str] = None, **kwargs
+    ):
         """
         Helper function to show text in rich format.
         """
         console.print("[dark-gray]（输入文本 / 回车键确认）")
+        if desc is not None:
+            console.print(f"[dark-gray]（{desc}）")
         result = inquirer.text(
             message=message,
             default=default,
@@ -466,6 +476,7 @@ class BF1ChsToolbox:
         directory: str,
         types: Union[str, List[str]],
         message: str = "选择文件",
+        desc: Optional[str] = None,
         **kwargs,
     ):
         """
@@ -490,6 +501,8 @@ class BF1ChsToolbox:
         console.print(
             "[dark-gray]（使用方向键上下移动 / 回车键确认 / 输入关键词进行模糊搜索）"
         )
+        if desc is not None:
+            console.print(f"[dark-gray]（{desc}）")
         result = inquirer.fuzzy(
             message=f"{message} ({types_repr})",
             choices=choices,
@@ -846,6 +859,13 @@ class BF1ChsToolbox:
 
         self._rich_show_object(strings_binary)
 
+        debug_mode = self._rich_confirm(
+            message="是否启用调试模式？",
+            default=False,
+            desc="调试模式下，所有词条前将被添加对应键作为注释。",
+        )
+        console.print()
+
         # Load new strings json file
         with open(
             os.path.join(processed_path, "strings-zht.csv.json"),
@@ -879,6 +899,9 @@ class BF1ChsToolbox:
         )
 
         def _import_strings_wrapper():
+            if debug_mode:
+                for key, value in new_dict.items():
+                    new_dict[key] = f"{key:08X} {value}"
             strings_binary.import_strings(new_dict)  # type: ignore
             return True
 
@@ -1090,6 +1113,13 @@ class BF1ChsToolbox:
                 return
             console.print()
 
+        debug_mode = self._rich_confirm(
+            message="是否启用调试模式？",
+            default=False,
+            desc="调试模式下，所有词条前将被添加对应键作为注释。",
+        )
+        console.print()
+
         def _twinkle_runner(
             progress: Progress,
             task: TaskID,
@@ -1101,6 +1131,12 @@ class BF1ChsToolbox:
                     entry_dict[item["original"]] = item["translation"]
                 elif entry_dict[item["original"]] != item["translation"]:
                     conflict_count += 1
+
+                if debug_mode:
+                    entry_dict[item["original"]] = (
+                        f"{item['key']} {item['translation']}"
+                    )
+
                 progress.advance(task)
 
             with open(
@@ -1449,5 +1485,7 @@ class BF1ChsToolbox:
 if __name__ == "__main__":
     try:
         BF1ChsToolbox().run()
+    except BF1ChsToolbox.ExitException:
+        pass
     except BF1ChsToolbox.ExitException:
         pass
