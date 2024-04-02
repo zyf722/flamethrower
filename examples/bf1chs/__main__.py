@@ -901,7 +901,9 @@ class BF1ChsToolbox:
         def _import_strings_wrapper():
             if debug_mode:
                 for key, value in new_dict.items():
-                    new_dict[key] = f"{key:08X} {value}"
+                    key_str = f"({key:08X})"
+                    key_str = key_str[:5] + " " + key_str[5:]
+                    new_dict[key] = f"{key_str} {value}"
             strings_binary.import_strings(new_dict)  # type: ignore
             return True
 
