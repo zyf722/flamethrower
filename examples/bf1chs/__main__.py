@@ -37,7 +37,7 @@ from ttffont import TTFInfo
 
 from flamethrower.localization import Histogram, StringsBinary
 
-VERSION = "v0.5.1"
+VERSION = "v0.6.0"
 PROJECT_ID = 8862
 REPO_NAME = "flamethrower"
 REPO_OWNER_GITHUB = "zyf722"
