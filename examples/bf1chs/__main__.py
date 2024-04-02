@@ -172,6 +172,11 @@ class BF1ChsToolbox:
                 "默认动态本地化文件名，需以 .json 结尾。",
                 *Validator.filename_validator(".json"),
             ),
+            "localization.debugKeyMaxLength": (
+                8,
+                "调试模式下，注释中键的最大长度。",
+                *Validator.positive_integer_validator,
+            ),
             "font.path": (
                 "font",
                 "字体文件存放路径，可为相对路径。",
@@ -1135,9 +1140,12 @@ class BF1ChsToolbox:
                     conflict_count += 1
 
                 if debug_mode:
-                    entry_dict[item["original"]] = (
-                        f"{item['key']} {item['translation']}"
-                    )
+                    key: str = item["key"]  # type: ignore
+                    if len(key) > self.config["localization.debugKeyMaxLength"]:
+                        key = (
+                            key[: self.config["localization.debugKeyMaxLength"]] + "..."
+                        )
+                    entry_dict[item["original"]] = f"{key} {item['translation']}"
 
                 progress.advance(task)
 
