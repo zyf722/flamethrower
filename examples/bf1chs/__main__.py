@@ -568,6 +568,8 @@ class BF1ChsToolbox:
 
                     console.print("[bold green]配置文件升级成功。\n")
                     config_loaded = True
+                else:
+                    raise BF1ChsToolbox.ExitException
 
             finally:
                 if config_loaded:
