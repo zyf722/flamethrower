@@ -1,3 +1,10 @@
+> [!NOTE]
+> This project has been migrated to [BF1CHS/flammenwerfer](https://github.com/BF1CHS/flammenwerfer) and is **no longer maintained here**.
+> 
+> Please visit the new repository for the latest updates.
+> 
+> 本仓库及 BF1CHS 工具箱源码已分别迁移至 [BF1CHS/flammenwerfer](https://github.com/BF1CHS/flammenwerfer) 及 [BF1CHS/bf1chs](https://github.com/BF1CHS/bf1chs)，**此处不再维护**。
+
 # flamethrower
 > 🔥 ***Flamethrower***, where ❄️ ***Frostbite*** meets the dance of inferno.
 
